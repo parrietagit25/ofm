@@ -1,0 +1,46 @@
+/* CSS personalizado para el header */
+.header-info > ul {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.header-info > ul > li {
+  margin-right: 15px;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.header-info > ul > li a {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.header-info > ul > li i {
+  font-size: 11px;
+  margin-right: 3px;
+}
+
+/* Ajustar el ancho de la columna para dar más espacio */
+@media (min-width: 1200px) {
+  .header-top .col-xl-3:first-child {
+    flex: 0 0 30%;
+    max-width: 30%;
+  }
+  
+  .header-top .col-xl-6 {
+    flex: 0 0 40%;
+    max-width: 40%;
+  }
+  
+  .header-top .col-xl-3:last-child {
+    flex: 0 0 30%;
+    max-width: 30%;
+  }
+}
+
+/* Asegurar que el texto no se rompa */
+.header-info > ul > li a {
+  word-break: keep-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

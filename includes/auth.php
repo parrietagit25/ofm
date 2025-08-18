@@ -1,0 +1,2 @@
+<?php
+// Funciones de autenticación

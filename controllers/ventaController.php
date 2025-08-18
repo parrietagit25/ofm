@@ -1,0 +1,2 @@
+<?php
+// Control de ventas
