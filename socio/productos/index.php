@@ -15,6 +15,24 @@ require_once __DIR__ . '/../../models/Producto.php';
 $productoModel = new Producto($pdo);
 $productos = $productoModel->obtenerPorSocio($usuario['id']);
 
+// Obtener imágenes para cada producto
+foreach ($productos as &$producto) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT ruta FROM producto_imagenes 
+            WHERE producto_id = ? AND principal = 1 
+            ORDER BY orden ASC 
+            LIMIT 1
+        ");
+        $stmt->execute([$producto['id']]);
+        $imagen = $stmt->fetch(PDO::FETCH_ASSOC);
+        $producto['imagen'] = $imagen ? $imagen['ruta'] : null;
+    } catch (Exception $e) {
+        $producto['imagen'] = null;
+    }
+}
+unset($producto);
+
 // Obtener categorías disponibles
 $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguetes', 'Libros', 'Otros'];
 ?>
@@ -113,8 +131,8 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
                 <a class="nav-link" href="../ventas/">
                     <i class="fas fa-chart-line"></i> Ventas
                 </a>
-                <a class="nav-link" href="../inventario/">
-                    <i class="fas fa-warehouse"></i> Inventario
+                <a class="nav-link" href="../verificar-qr/">
+                    <i class="fas fa-qrcode"></i> Verificar QR
                 </a>
                 <a class="nav-link" href="../perfil/">
                     <i class="fas fa-user"></i> Mi Perfil
@@ -212,8 +230,8 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
                                                 </td>
                                                 <td>
                                                     <strong class="text-success">$<?= number_format($producto['precio'], 2) ?></strong>
-                                                    <?php if ($producto['precio_original'] > $producto['precio']): ?>
-                                                        <br><small class="text-muted text-decoration-line-through">$<?= number_format($producto['precio_original'], 2) ?></small>
+                                                    <?php if ($producto['precio_anterior'] && $producto['precio_anterior'] > $producto['precio']): ?>
+                                                        <br><small class="text-muted text-decoration-line-through">$<?= number_format($producto['precio_anterior'], 2) ?></small>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
@@ -226,7 +244,7 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <?php if ($producto['activo'] && $producto['stock'] > 0): ?>
+                                                    <?php if ($producto['status'] === 'activo' && $producto['stock'] > 0): ?>
                                                         <span class="product-status status-active">Activo</span>
                                                     <?php elseif ($producto['stock'] == 0): ?>
                                                         <span class="product-status status-inactive">Sin Stock</span>
@@ -246,9 +264,9 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
                                                         <i class="fas fa-edit"></i>
                                                     </a>
                                                     <button class="btn btn-sm btn-outline-warning" 
-                                                            onclick="toggleEstado(<?= $producto['id'] ?>, <?= $producto['activo'] ? 0 : 1 ?>)"
-                                                            title="<?= $producto['activo'] ? 'Desactivar' : 'Activar' ?>">
-                                                        <i class="fas fa-<?= $producto['activo'] ? 'eye-slash' : 'eye' ?>"></i>
+                                                            onclick="toggleEstado(<?= $producto['id'] ?>, '<?= $producto['status'] === 'activo' ? 'inactivo' : 'activo' ?>')"
+                                                            title="<?= $producto['status'] === 'activo' ? 'Desactivar' : 'Activar' ?>">
+                                                        <i class="fas fa-<?= $producto['status'] === 'activo' ? 'eye-slash' : 'eye' ?>"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-danger" 
                                                             onclick="eliminarProducto(<?= $producto['id'] ?>)"
@@ -299,7 +317,7 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
                     },
                     body: JSON.stringify({
                         producto_id: productoId,
-                        activo: nuevoEstado
+                        status: nuevoEstado
                     })
                 })
                 .then(response => response.json())

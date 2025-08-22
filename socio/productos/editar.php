@@ -16,11 +16,29 @@ $comercioModel = new Comercio($pdo);
 $comercios = $comercioModel->obtenerPorUsuarioSocio($usuario['id']);
 
 if (empty($comercios)) {
-    $mensaje = 'Debes tener un comercio registrado para agregar productos. Contacta al administrador.';
-    $tipoMensaje = 'warning';
-    $comercio_id = null;
-} else {
-    $comercio_id = $comercios[0]['id']; // Usar el primer comercio del socio
+    header('Location: ../dashboard.php');
+    exit;
+}
+
+$comercio_id = $comercios[0]['id'];
+
+// Verificar que se proporcione un ID de producto
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+    header('Location: index.php');
+    exit;
+}
+
+$producto_id = intval($_GET['id']);
+
+// Obtener el producto
+require_once __DIR__ . '/../../models/Producto.php';
+$productoModel = new Producto($pdo);
+$producto = $productoModel->obtenerPorId($producto_id);
+
+// Verificar que el producto exista y pertenezca al socio
+if (!$producto || $producto['comercio_id'] != $comercio_id) {
+    header('Location: index.php');
+    exit;
 }
 
 // Categorías disponibles
@@ -30,16 +48,14 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
 $mensaje = '';
 $tipoMensaje = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
-    require_once __DIR__ . '/../../models/Producto.php';
-    $productoModel = new Producto($pdo);
-    
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $precio = floatval($_POST['precio'] ?? 0);
-    $precio_original = floatval($_POST['precio_original'] ?? 0);
+    $precio_anterior = floatval($_POST['precio_anterior'] ?? 0);
     $stock = intval($_POST['stock'] ?? 0);
     $categoria = trim($_POST['categoria'] ?? '');
+    $status = trim($_POST['status'] ?? 'activo');
     
     // Validaciones
     if (empty($nombre)) {
@@ -75,54 +91,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
             }
         }
         
-        // Crear producto
+        // Actualizar producto
         $datos = [
-            'comercio_id' => $comercio_id,
             'nombre' => $nombre,
             'descripcion' => $descripcion,
             'precio' => $precio,
-            'precio_anterior' => $precio_original > 0 ? $precio_original : null,
+            'precio_anterior' => $precio_anterior > 0 ? $precio_anterior : null,
             'stock' => $stock,
             'categoria' => $categoria,
-            'marca' => null,
-            'codigo_producto' => null,
-            'peso' => null,
-            'dimensiones' => null,
-            'status' => 'activo',
-            'destacado' => 0
+            'status' => $status
         ];
         
-        $resultado = $productoModel->crear($datos);
+        $resultado = $productoModel->actualizar($producto_id, $datos);
         
         if ($resultado['success']) {
-            // Si hay imagen, guardarla en la tabla producto_imagenes
+            // Si hay nueva imagen, actualizarla en la tabla producto_imagenes
             if (!empty($imagen)) {
                 try {
+                    // Eliminar imagen anterior si existe
+                    $stmt = $pdo->prepare("DELETE FROM producto_imagenes WHERE producto_id = ? AND principal = 1");
+                    $stmt->execute([$producto_id]);
+                    
+                    // Insertar nueva imagen
                     $stmt = $pdo->prepare("
                         INSERT INTO producto_imagenes (producto_id, nombre_archivo, ruta, tipo, orden, principal) 
                         VALUES (?, ?, ?, 'imagen', 1, 1)
                     ");
                     $stmt->execute([
-                        $resultado['id'], 
+                        $producto_id, 
                         basename($imagen), 
                         $imagen
                     ]);
                 } catch (Exception $e) {
-                    // Error al guardar imagen, pero el producto ya se creó
-                    error_log("Error al guardar imagen del producto: " . $e->getMessage());
+                    error_log("Error al actualizar imagen del producto: " . $e->getMessage());
                 }
             }
             
-            $mensaje = 'Producto creado exitosamente';
+            $mensaje = 'Producto actualizado exitosamente';
             $tipoMensaje = 'success';
             
-            // Limpiar formulario
-            $_POST = [];
+            // Recargar datos del producto
+            $producto = $productoModel->obtenerPorId($producto_id);
         } else {
             $mensaje = $resultado['message'];
             $tipoMensaje = 'danger';
         }
     }
+}
+
+// Obtener imagen actual del producto
+$imagen_actual = null;
+try {
+    $stmt = $pdo->prepare("
+        SELECT ruta FROM producto_imagenes 
+        WHERE producto_id = ? AND principal = 1 
+        ORDER BY orden ASC 
+        LIMIT 1
+    ");
+    $stmt->execute([$producto_id]);
+    $imagen_data = $stmt->fetch(PDO::FETCH_ASSOC);
+    $imagen_actual = $imagen_data ? $imagen_data['ruta'] : null;
+} catch (Exception $e) {
+    $imagen_actual = null;
 }
 ?>
 
@@ -131,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Agregar Producto - OFM Socio</title>
+    <title>Editar Producto - OFM Socio</title>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback" rel="stylesheet">
@@ -226,8 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                 <a class="nav-link" href="../ventas/">
                     <i class="fas fa-chart-line"></i> Ventas
                 </a>
-                <a class="nav-link" href="../inventario/">
-                    <i class="fas fa-warehouse"></i> Inventario
+                <a class="nav-link" href="../verificar-qr/">
+                    <i class="fas fa-qrcode"></i> Verificar QR
                 </a>
                 <a class="nav-link" href="../perfil/">
                     <i class="fas fa-user"></i> Mi Perfil
@@ -247,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                 <!-- Top Navbar -->
                 <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 rounded shadow-sm">
                     <div class="container-fluid">
-                        <span class="navbar-brand">Agregar Producto</span>
+                        <span class="navbar-brand">Editar Producto</span>
                         <div class="navbar-nav ms-auto">
                             <div class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
@@ -268,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="../dashboard.php">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="index.php">Mis Productos</a></li>
-                        <li class="breadcrumb-item active">Agregar Producto</li>
+                        <li class="breadcrumb-item active">Editar Producto</li>
                     </ol>
                 </nav>
 
@@ -281,11 +311,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                 <?php endif; ?>
 
                 <!-- Formulario -->
-                <?php if ($comercio_id): ?>
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-plus me-2"></i>Nuevo Producto
+                            <i class="fas fa-edit me-2"></i>Editar Producto: <?= htmlspecialchars($producto['nombre']) ?>
                         </h5>
                     </div>
                     <div class="card-body">
@@ -296,14 +325,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                                     <div class="mb-3">
                                         <label for="nombre" class="form-label">Nombre del Producto *</label>
                                         <input type="text" class="form-control" id="nombre" name="nombre" 
-                                               value="<?= htmlspecialchars($_POST['nombre'] ?? '') ?>" required>
+                                               value="<?= htmlspecialchars($producto['nombre']) ?>" required>
                                         <div class="form-text">Nombre descriptivo del producto</div>
                                     </div>
 
                                     <div class="mb-3">
                                         <label for="descripcion" class="form-label">Descripción</label>
                                         <textarea class="form-control" id="descripcion" name="descripcion" rows="4"
-                                                  placeholder="Describe las características del producto..."><?= htmlspecialchars($_POST['descripcion'] ?? '') ?></textarea>
+                                                  placeholder="Describe las características del producto..."><?= htmlspecialchars($producto['descripcion']) ?></textarea>
                                         <div class="form-text">Descripción detallada del producto</div>
                                     </div>
 
@@ -314,7 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                                                 <select class="form-select" id="categoria" name="categoria" required>
                                                     <option value="">Seleccionar categoría</option>
                                                     <?php foreach ($categorias as $cat): ?>
-                                                        <option value="<?= $cat ?>" <?= ($_POST['categoria'] ?? '') === $cat ? 'selected' : '' ?>>
+                                                        <option value="<?= $cat ?>" <?= $producto['categoria'] === $cat ? 'selected' : '' ?>>
                                                             <?= $cat ?>
                                                         </option>
                                                     <?php endforeach; ?>
@@ -323,9 +352,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="stock" class="form-label">Stock Inicial *</label>
+                                                <label for="stock" class="form-label">Stock *</label>
                                                 <input type="number" class="form-control" id="stock" name="stock" 
-                                                       value="<?= htmlspecialchars($_POST['stock'] ?? '0') ?>" min="0" required>
+                                                       value="<?= htmlspecialchars($producto['stock']) ?>" min="0" required>
                                                 <div class="form-text">Cantidad disponible</div>
                                             </div>
                                         </div>
@@ -338,7 +367,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                                                 <div class="input-group">
                                                     <span class="input-group-text">$</span>
                                                     <input type="number" class="form-control" id="precio" name="precio" 
-                                                           value="<?= htmlspecialchars($_POST['precio'] ?? '') ?>" 
+                                                           value="<?= htmlspecialchars($producto['precio']) ?>" 
                                                            step="0.01" min="0" required>
                                                 </div>
                                                 <div class="form-text">Precio actual de venta</div>
@@ -346,23 +375,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="precio_original" class="form-label">Precio Original</label>
+                                                <label for="precio_anterior" class="form-label">Precio Original</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text">$</span>
-                                                    <input type="number" class="form-control" id="precio_original" name="precio_original" 
-                                                           value="<?= htmlspecialchars($_POST['precio_original'] ?? '') ?>" 
+                                                    <input type="number" class="form-control" id="precio_anterior" name="precio_anterior" 
+                                                           value="<?= htmlspecialchars($producto['precio_anterior'] ?? '') ?>" 
                                                            step="0.01" min="0">
                                                 </div>
                                                 <div class="form-text">Precio antes del descuento (opcional)</div>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="mb-3">
+                                        <label for="status" class="form-label">Estado del Producto</label>
+                                        <select class="form-select" id="status" name="status">
+                                            <option value="activo" <?= $producto['status'] === 'activo' ? 'selected' : '' ?>>Activo</option>
+                                            <option value="inactivo" <?= $producto['status'] === 'inactivo' ? 'selected' : '' ?>>Inactivo</option>
+                                            <option value="agotado" <?= $producto['status'] === 'agotado' ? 'selected' : '' ?>>Agotado</option>
+                                            <option value="en_oferta" <?= $producto['status'] === 'en_oferta' ? 'selected' : '' ?>>En Oferta</option>
+                                        </select>
+                                        <div class="form-text">Estado actual del producto</div>
+                                    </div>
                                 </div>
 
                                 <div class="col-md-4">
                                     <!-- Imagen del producto -->
                                     <div class="mb-3">
-                                        <label for="imagen" class="form-label">Imagen del Producto</label>
+                                        <label for="imagen" class="form-label">Nueva Imagen del Producto</label>
                                         <input type="file" class="form-control" id="imagen" name="imagen" 
                                                accept="image/*" onchange="previewImage(this)">
                                         <div class="form-text">Formatos: JPG, PNG, GIF, WebP</div>
@@ -370,32 +410,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
 
                                     <!-- Vista previa de la imagen -->
                                     <div class="image-preview" id="imagePreview">
-                                        <i class="fas fa-image fa-3x text-muted"></i>
-                                        <p class="text-muted mt-2">Vista previa de la imagen</p>
+                                        <?php if ($imagen_actual): ?>
+                                            <img src="<?= htmlspecialchars($imagen_actual) ?>" alt="Imagen actual del producto">
+                                        <?php else: ?>
+                                            <i class="fas fa-image fa-3x text-muted"></i>
+                                            <p class="text-muted mt-2">Sin imagen</p>
+                                        <?php endif; ?>
                                     </div>
 
-                                    <!-- Información adicional -->
+                                    <!-- Información del producto -->
                                     <div class="card bg-light">
                                         <div class="card-body">
                                             <h6 class="card-title">
-                                                <i class="fas fa-info-circle me-2"></i>Consejos
+                                                <i class="fas fa-info-circle me-2"></i>Información del Producto
                                             </h6>
                                             <ul class="list-unstyled small">
                                                 <li class="mb-2">
-                                                    <i class="fas fa-check text-success me-2"></i>
-                                                    Usa nombres descriptivos
+                                                    <strong>ID:</strong> <?= $producto['id'] ?>
                                                 </li>
                                                 <li class="mb-2">
-                                                    <i class="fas fa-check text-success me-2"></i>
-                                                    Incluye imágenes de calidad
+                                                    <strong>Creado:</strong> <?= date('d/m/Y', strtotime($producto['creado_en'])) ?>
                                                 </li>
                                                 <li class="mb-2">
-                                                    <i class="fas fa-check text-success me-2"></i>
-                                                    Mantén el stock actualizado
+                                                    <strong>Última actualización:</strong> 
+                                                    <?= $producto['actualizado_en'] ? date('d/m/Y', strtotime($producto['actualizado_en'])) : 'Nunca' ?>
                                                 </li>
                                                 <li>
-                                                    <i class="fas fa-check text-success me-2"></i>
-                                                    Precios competitivos
+                                                    <strong>Comercio ID:</strong> <?= $producto['comercio_id'] ?>
                                                 </li>
                                             </ul>
                                         </div>
@@ -410,29 +451,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                                 </a>
                                 <div>
                                     <button type="reset" class="btn btn-outline-secondary me-2">
-                                        <i class="fas fa-undo me-2"></i>Limpiar
+                                        <i class="fas fa-undo me-2"></i>Restaurar
                                     </button>
                                     <button type="submit" class="btn btn-success">
-                                        <i class="fas fa-save me-2"></i>Guardar Producto
+                                        <i class="fas fa-save me-2"></i>Actualizar Producto
                                     </button>
                                 </div>
                             </div>
                         </form>
                     </div>
                 </div>
-                <?php else: ?>
-                <div class="card">
-                    <div class="card-body text-center">
-                        <i class="fas fa-store fa-4x text-muted mb-3"></i>
-                        <h4>No tienes un comercio registrado</h4>
-                        <p class="text-muted">Para agregar productos necesitas tener un comercio asociado a tu cuenta.</p>
-                        <p>Contacta al administrador para registrar tu comercio.</p>
-                        <a href="../dashboard.php" class="btn btn-primary">
-                            <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
-                        </a>
-                    </div>
-                </div>
-                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -454,30 +482,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
                 
                 reader.readAsDataURL(input.files[0]);
             } else {
-                preview.innerHTML = `
-                    <i class="fas fa-image fa-3x text-muted"></i>
-                    <p class="text-muted mt-2">Vista previa de la imagen</p>
-                `;
+                // Restaurar imagen original si existe
+                <?php if ($imagen_actual): ?>
+                    preview.innerHTML = `<img src="<?= htmlspecialchars($imagen_actual) ?>" alt="Imagen actual del producto">`;
+                <?php else: ?>
+                    preview.innerHTML = `
+                        <i class="fas fa-image fa-3x text-muted"></i>
+                        <p class="text-muted mt-2">Sin imagen</p>
+                    `;
+                <?php endif; ?>
             }
         }
 
         // Validación del formulario
         document.getElementById('productoForm').addEventListener('submit', function(e) {
             const precio = parseFloat(document.getElementById('precio').value);
-            const precioOriginal = parseFloat(document.getElementById('precio_original').value);
+            const precioAnterior = parseFloat(document.getElementById('precio_anterior').value);
             
-            if (precioOriginal > 0 && precio >= precioOriginal) {
+            if (precioAnterior > 0 && precio >= precioAnterior) {
                 e.preventDefault();
                 alert('El precio de venta debe ser menor al precio original para aplicar descuento');
                 return false;
-            }
-        });
-
-        // Auto-completar precio original si está vacío
-        document.getElementById('precio').addEventListener('change', function() {
-            const precioOriginal = document.getElementById('precio_original');
-            if (!precioOriginal.value) {
-                precioOriginal.value = this.value;
             }
         });
     </script>

@@ -15,6 +15,7 @@ $texts = require __DIR__ . '/lang/' . $lang . '.php';
 
 // Inicializar controlador de autenticación simplificado
 require_once __DIR__ . '/../../controllers/loginController_simple.php';
+$loginController = new LoginControllerSimple($pdo);
 
 // Si ya está autenticado, redirigir al dashboard correspondiente
 if ($loginController->estaAutenticado()) {

@@ -2,7 +2,7 @@
 // includes/db.php
 
 
-$conf = 1;
+$conf = 0;
 
 if ($conf == 1) {
 

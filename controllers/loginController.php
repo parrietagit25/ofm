@@ -101,7 +101,7 @@ class LoginController {
 
     // Cerrar sesión
     public function cerrarSesion() {
-        session_destroy();
+        cerrarSesionSegura();
         return ['success' => true, 'message' => 'Sesión cerrada correctamente'];
     }
 

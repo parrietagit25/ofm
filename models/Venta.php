@@ -16,12 +16,14 @@ class Venta {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Obtener ventas por socio
+    // Obtener ventas por socio (a través de su comercio)
     public function obtenerPorSocio($socioId) {
-        $sql = "SELECT v.*, c.nombre as cliente_nombre, c.email as cliente_email 
+        $sql = "SELECT v.*, c.nombre as cliente_nombre, c.email as cliente_email, 
+                       co.nombre_comercio
                 FROM ventas v 
                 LEFT JOIN usuarios c ON v.cliente_id = c.id 
-                WHERE v.socio_id = ? 
+                LEFT JOIN comercios co ON v.comercio_id = co.id
+                WHERE co.usuario_socio_id = ? 
                 ORDER BY v.creado_en DESC";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$socioId]);
@@ -30,9 +32,10 @@ class Venta {
 
     // Obtener ventas por cliente
     public function obtenerPorCliente($clienteId) {
-        $sql = "SELECT v.*, s.nombre as socio_nombre, s.email as socio_email 
+        $sql = "SELECT v.*, co.nombre_comercio, u.nombre as socio_nombre, u.email as socio_email 
                 FROM ventas v 
-                LEFT JOIN usuarios s ON v.socio_id = s.id 
+                LEFT JOIN comercios co ON v.comercio_id = co.id
+                LEFT JOIN usuarios u ON co.usuario_socio_id = u.id 
                 WHERE v.cliente_id = ? 
                 ORDER BY v.creado_en DESC";
         $stmt = $this->pdo->prepare($sql);
@@ -43,10 +46,11 @@ class Venta {
     // Obtener venta por ID
     public function obtenerPorId($id) {
         $sql = "SELECT v.*, c.nombre as cliente_nombre, c.email as cliente_email,
-                       s.nombre as socio_nombre, s.email as socio_email
+                       co.nombre_comercio, u.nombre as socio_nombre, u.email as socio_email
                 FROM ventas v 
                 LEFT JOIN usuarios c ON v.cliente_id = c.id 
-                LEFT JOIN usuarios s ON v.socio_id = s.id 
+                LEFT JOIN comercios co ON v.comercio_id = co.id
+                LEFT JOIN usuarios u ON co.usuario_socio_id = u.id 
                 WHERE v.id = ?";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$id]);
@@ -54,22 +58,22 @@ class Venta {
     }
 
     // Crear nueva venta
-    public function crear($cliente_id, $socio_id, $total, $metodo_pago = null, $direccion_envio = null) {
-        $sql = "INSERT INTO ventas (cliente_id, socio_id, total, metodo_pago, direccion_envio, estado, creado_en) 
-                VALUES (?, ?, ?, ?, ?, 'pendiente', NOW())";
+    public function crear($cliente_id, $comercio_id, $total, $metodo_pago = null, $direccion_envio = null) {
+        $sql = "INSERT INTO ventas (cliente_id, comercio_id, total, metodo_pago, status, creado_en) 
+                VALUES (?, ?, ?, ?, 'pendiente', NOW())";
         $stmt = $this->pdo->prepare($sql);
         
-        if ($stmt->execute([$cliente_id, $socio_id, $total, $metodo_pago, $direccion_envio])) {
+        if ($stmt->execute([$cliente_id, $comercio_id, $total, $metodo_pago])) {
             return ['success' => true, 'id' => $this->pdo->lastInsertId()];
         }
         return ['success' => false, 'message' => 'Error al crear la venta'];
     }
 
     // Actualizar estado de la venta
-    public function actualizarEstado($id, $estado) {
-        $sql = "UPDATE ventas SET estado = ?, actualizado_en = NOW() WHERE id = ?";
+    public function actualizarEstado($id, $status) {
+        $sql = "UPDATE ventas SET status = ?, actualizado_en = NOW() WHERE id = ?";
         $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute([$estado, $id]);
+        return $stmt->execute([$status, $id]);
     }
 
     // Actualizar venta
@@ -81,7 +85,7 @@ class Venta {
 
     // Eliminar venta (soft delete)
     public function eliminar($id) {
-        $sql = "UPDATE ventas SET estado = 'cancelado', actualizado_en = NOW() WHERE id = ?";
+        $sql = "UPDATE ventas SET status = 'cancelada', actualizado_en = NOW() WHERE id = ?";
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$id]);
     }
@@ -107,10 +111,11 @@ class Venta {
                     COUNT(*) as total_ventas,
                     SUM(total) as ingresos_totales,
                     AVG(total) as promedio_venta,
-                    COUNT(CASE WHEN estado = 'completada' THEN 1 END) as ventas_completadas,
-                    COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) as ventas_pendientes
-                FROM ventas 
-                WHERE socio_id = ? AND creado_en >= $fechaInicio";
+                    COUNT(CASE WHEN status = 'entregada' THEN 1 END) as ventas_completadas,
+                    COUNT(CASE WHEN status = 'pendiente' THEN 1 END) as ventas_pendientes
+                FROM ventas v
+                INNER JOIN comercios c ON v.comercio_id = c.id
+                WHERE c.usuario_socio_id = ? AND v.creado_en >= $fechaInicio";
         
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$socioId]);

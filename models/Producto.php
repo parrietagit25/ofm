@@ -221,6 +221,25 @@ class Producto {
     }
     
     /**
+     * Obtener productos por socio (a través de su comercio)
+     */
+    public function obtenerPorSocio($socioId) {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT p.*, c.nombre_comercio, c.direccion as direccion_comercio
+                FROM productos p
+                INNER JOIN comercios c ON p.comercio_id = c.id
+                WHERE c.usuario_socio_id = ? 
+                ORDER BY p.creado_en DESC
+            ");
+            $stmt->execute([$socioId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    /**
      * Obtener producto por ID
      */
     public function obtenerPorId($id) {

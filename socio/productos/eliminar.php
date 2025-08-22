@@ -5,15 +5,6 @@ require_once __DIR__ . '/../../models/Producto.php';
 // Verificar que el usuario esté autenticado y sea socio
 $loginController->verificarAcceso('socio');
 
-// Obtener información del usuario actual
-$usuario = $loginController->obtenerUsuarioActual();
-
-// Verificar expiración de sesión
-$loginController->verificarExpiracionSesion();
-
-// Configurar headers para JSON
-header('Content-Type: application/json');
-
 // Verificar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -21,51 +12,53 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Obtener datos del JSON
+// Obtener datos JSON del body
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!$input) {
-    echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
+if (!isset($input['producto_id'])) {
+    echo json_encode(['success' => false, 'message' => 'ID de producto no proporcionado']);
     exit;
 }
 
-$productoId = intval($input['producto_id'] ?? 0);
+$producto_id = intval($input['producto_id']);
 
-if ($productoId <= 0) {
-    echo json_encode(['success' => false, 'message' => 'ID de producto inválido']);
+// Obtener información del usuario actual
+$usuario = $loginController->obtenerUsuarioActual();
+
+// Obtener comercio del socio
+require_once __DIR__ . '/../../models/Comercio.php';
+$comercioModel = new Comercio($pdo);
+$comercios = $comercioModel->obtenerPorUsuarioSocio($usuario['id']);
+
+if (empty($comercios)) {
+    echo json_encode(['success' => false, 'message' => 'No tienes un comercio asignado']);
     exit;
 }
 
-try {
-    $productoModel = new Producto($pdo);
-    
-    // Verificar que el producto pertenezca al socio
-    $producto = $productoModel->obtenerPorId($productoId);
-    
-    if (!$producto) {
-        echo json_encode(['success' => false, 'message' => 'Producto no encontrado']);
-        exit;
-    }
-    
-    // Verificar que el producto pertenezca al socio actual
-    if ($producto['socio_id'] != $usuario['id']) {
-        echo json_encode(['success' => false, 'message' => 'No tienes permisos para eliminar este producto']);
-        exit;
-    }
-    
-    // Eliminar producto (soft delete)
-    $resultado = $productoModel->eliminar($productoId);
-    
-    if ($resultado) {
-        echo json_encode([
-            'success' => true, 
-            'message' => 'Producto eliminado exitosamente'
-        ]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Error al eliminar el producto']);
-    }
-    
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Error interno del servidor']);
+$comercio_id = $comercios[0]['id'];
+
+// Verificar que el producto exista y pertenezca al socio
+$productoModel = new Producto($pdo);
+$producto = $productoModel->obtenerPorId($producto_id);
+
+if (!$producto || $producto['comercio_id'] != $comercio_id) {
+    echo json_encode(['success' => false, 'message' => 'Producto no encontrado o no tienes permisos']);
+    exit;
+}
+
+// Eliminar el producto (soft delete - cambiar status a 'eliminado')
+$datos = ['status' => 'eliminado'];
+$resultado = $productoModel->actualizar($producto_id, $datos);
+
+if ($resultado['success']) {
+    echo json_encode([
+        'success' => true, 
+        'message' => 'Producto eliminado correctamente'
+    ]);
+} else {
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Error al eliminar el producto: ' . $resultado['message']
+    ]);
 }
 ?>

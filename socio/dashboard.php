@@ -4,11 +4,24 @@ require_once __DIR__ . '/../controllers/loginController.php';
 // Verificar que el usuario esté autenticado y sea socio
 $loginController->verificarAcceso('socio');
 
+// Manejar logout
+if (isset($_GET['logout']) && $_GET['logout'] == 1) {
+    $loginController->cerrarSesion();
+    header('Location: /ofm/public/evara/page-login-register.php?logout=success');
+    exit;
+}
+
 // Obtener información del usuario actual
 $usuario = $loginController->obtenerUsuarioActual();
 
 // Verificar expiración de sesión
 $loginController->verificarExpiracionSesion();
+
+// Obtener comercio del socio
+require_once __DIR__ . '/../models/Comercio.php';
+$comercioModel = new Comercio($pdo);
+$comercios = $comercioModel->obtenerPorUsuarioSocio($usuario['id']);
+$comercio = !empty($comercios) ? $comercios[0] : null;
 
 // Obtener estadísticas del socio
 require_once __DIR__ . '/../models/Producto.php';
@@ -17,13 +30,21 @@ require_once __DIR__ . '/../models/Venta.php';
 $productoModel = new Producto($pdo);
 $ventaModel = new Venta($pdo);
 
-// Obtener productos del socio
-$productosSocio = $productoModel->obtenerPorSocio($usuario['id']);
-$totalProductos = count($productosSocio);
+// Obtener productos del socio (solo si tiene comercio)
+$productosSocio = [];
+$totalProductos = 0;
+if ($comercio) {
+    $productosSocio = $productoModel->obtenerPorSocio($usuario['id']);
+    $totalProductos = count($productosSocio);
+}
 
-// Obtener ventas del socio
-$ventasSocio = $ventaModel->obtenerPorSocio($usuario['id']);
-$totalVentas = count($ventasSocio);
+// Obtener ventas del socio (solo si tiene comercio)
+$ventasSocio = [];
+$totalVentas = 0;
+if ($comercio) {
+    $ventasSocio = $ventaModel->obtenerPorSocio($usuario['id']);
+    $totalVentas = count($ventasSocio);
+}
 
 // Calcular ingresos del mes
 $ingresosMes = 0;
@@ -169,8 +190,8 @@ foreach ($productosSocio as $producto) {
                 <a class="nav-link" href="ventas/">
                     <i class="fas fa-chart-line"></i> Ventas
                 </a>
-                <a class="nav-link" href="inventario/">
-                    <i class="fas fa-warehouse"></i> Inventario
+                <a class="nav-link" href="verificar-qr/">
+                    <i class="fas fa-qrcode"></i> Verificar QR
                 </a>
                 <a class="nav-link" href="perfil/">
                     <i class="fas fa-user"></i> Mi Perfil
@@ -209,117 +230,141 @@ foreach ($productosSocio as $producto) {
                 <!-- Quick Actions -->
                 <div class="quick-actions">
                     <h5 class="mb-3">Acciones Rápidas</h5>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <a href="productos/agregar.php" class="quick-action-btn">
-                                <i class="fas fa-plus"></i>
-                                <div>
-                                    <strong>Agregar Producto</strong>
-                                    <small class="d-block text-muted">Crear nuevo producto</small>
-                                </div>
-                            </a>
+                    <?php if ($comercio): ?>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <a href="productos/agregar.php" class="quick-action-btn">
+                                    <i class="fas fa-plus"></i>
+                                    <div>
+                                        <strong>Agregar Producto</strong>
+                                        <small class="d-block text-muted">Crear nuevo producto</small>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="inventario/" class="quick-action-btn">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <div>
+                                        <strong>Stock Bajo</strong>
+                                        <small class="d-block text-muted"><?= $productosStockBajo ?> productos</small>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="ventas/" class="quick-action-btn">
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <div>
+                                        <strong>Nuevas Ventas</strong>
+                                        <small class="d-block text-muted">Ver pedidos</small>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="reportes/" class="quick-action-btn">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <div>
+                                        <strong>Reportes</strong>
+                                        <small class="d-block text-muted">Análisis de ventas</small>
+                                    </div>
+                                </a>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <a href="inventario/" class="quick-action-btn">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <div>
-                                    <strong>Stock Bajo</strong>
-                                    <small class="d-block text-muted"><?= $productosStockBajo ?> productos</small>
-                                </div>
-                            </a>
+                    <?php else: ?>
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle fa-2x mb-3"></i>
+                            <h5>Comercio Requerido</h5>
+                            <p class="mb-3">Para acceder a las funcionalidades de productos y ventas, primero necesitas tener un comercio asignado.</p>
+                            <p class="mb-0"><strong>Contacta al administrador del sistema para registrar tu comercio.</strong></p>
                         </div>
-                        <div class="col-md-3">
-                            <a href="ventas/" class="quick-action-btn">
-                                <i class="fas fa-shopping-cart"></i>
-                                <div>
-                                    <strong>Nuevas Ventas</strong>
-                                    <small class="d-block text-muted">Ver pedidos</small>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <a href="reportes/" class="quick-action-btn">
-                                <i class="fas fa-chart-bar"></i>
-                                <div>
-                                    <strong>Reportes</strong>
-                                    <small class="d-block text-muted">Análisis de ventas</small>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Stats Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card stats-card">
-                            <div class="card-body text-center">
-                                <i class="fas fa-box fa-2x mb-2"></i>
-                                <h5>Total Productos</h5>
-                                <h3><?= $totalProductos ?></h3>
+                <?php if ($comercio): ?>
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card stats-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-box fa-2x mb-2"></i>
+                                    <h5>Total Productos</h5>
+                                    <h3><?= $totalProductos ?></h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stats-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                                    <h5>Ventas del Mes</h5>
+                                    <h3><?= $totalVentas ?></h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stats-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                                    <h5>Ingresos del Mes</h5>
+                                    <h3>$<?= number_format($ingresosMes, 2) ?></h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stats-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                                    <h5>Stock Bajo</h5>
+                                    <h3><?= $productosStockBajo ?></h3>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card stats-card">
-                            <div class="card-body text-center">
-                                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
-                                <h5>Ventas del Mes</h5>
-                                <h3><?= $totalVentas ?></h3>
+                <?php else: ?>
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">Sin Comercio Asignado</h5>
+                                    <p class="text-muted mb-0">Las estadísticas estarán disponibles una vez que tengas un comercio asignado.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card stats-card">
-                            <div class="card-body text-center">
-                                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                                <h5>Ingresos del Mes</h5>
-                                <h3>$<?= number_format($ingresosMes, 2) ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card stats-card">
-                            <div class="card-body text-center">
-                                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                                <h5>Stock Bajo</h5>
-                                <h3><?= $productosStockBajo ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <?php endif; ?>
 
                 <!-- Main Content Row -->
-                <div class="row">
-                    <div class="col-md-8">
-                        <!-- Recent Sales -->
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Ventas Recientes</h5>
-                                <a href="ventas/" class="btn btn-sm btn-outline-primary">Ver Todas</a>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($ventasSocio)): ?>
-                                    <p class="text-muted text-center">No hay ventas recientes</p>
-                                <?php else: ?>
-                                    <?php foreach (array_slice($ventasSocio, 0, 5) as $venta): ?>
-                                        <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-success rounded-circle p-2 me-3">
-                                                <i class="fas fa-check text-white"></i>
+                <?php if ($comercio): ?>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Recent Sales -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Ventas Recientes</h5>
+                                    <a href="ventas/" class="btn btn-sm btn-outline-primary">Ver Todas</a>
+                                </div>
+                                <div class="card-body">
+                                    <?php if (empty($ventasSocio)): ?>
+                                        <p class="text-muted text-center">No hay ventas recientes</p>
+                                    <?php else: ?>
+                                        <?php foreach (array_slice($ventasSocio, 0, 5) as $venta): ?>
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-success rounded-circle p-2 me-3">
+                                                    <i class="fas fa-check text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Venta #<?= $venta['id'] ?></h6>
+                                                    <small class="text-muted">Total: $<?= number_format($venta['total'], 2) ?></small>
+                                                </div>
+                                                <small class="text-muted ms-auto">
+                                                    <?= date('d/m/Y', strtotime($venta['creado_en'])) ?>
+                                                </small>
                                             </div>
-                                            <div>
-                                                <h6 class="mb-0">Venta #<?= $venta['id'] ?></h6>
-                                                <small class="text-muted">Total: $<?= number_format($venta['total'], 2) ?></small>
-                                            </div>
-                                            <small class="text-muted ms-auto">
-                                                <?= date('d/m/Y', strtotime($venta['creado_en'])) ?>
-                                            </small>
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
-                    </div>
                     <div class="col-md-4">
                         <!-- User Info -->
                         <div class="card">
@@ -333,9 +378,37 @@ foreach ($productosSocio as $producto) {
                                     </div>
                                     <h6 class="text-center"><?= htmlspecialchars($usuario['nombre']) ?></h6>
                                     <p class="text-center mb-2"><?= htmlspecialchars($usuario['email']) ?></p>
-                                    <div class="text-center">
+                                    <div class="text-center mb-3">
                                         <span class="badge bg-light text-dark">Socio</span>
                                     </div>
+                                    
+                                    <?php if ($comercio): ?>
+                                        <!-- Información del comercio -->
+                                        <div class="border-top pt-3">
+                                            <h6 class="text-center mb-2">
+                                                <i class="fas fa-building me-2"></i>Comercio Asignado
+                                            </h6>
+                                            <h6 class="text-center text-white"><?= htmlspecialchars($comercio['nombre_comercio']) ?></h6>
+                                            <p class="text-center mb-1 small">
+                                                <i class="fas fa-map-marker-alt me-1"></i>
+                                                <?= htmlspecialchars($comercio['direccion']) ?>
+                                            </p>
+                                            <p class="text-center mb-0 small">
+                                                <i class="fas fa-phone me-1"></i>
+                                                <?= htmlspecialchars($comercio['telefono_comercio']) ?>
+                                            </p>
+                                        </div>
+                                    <?php else: ?>
+                                        <!-- Sin comercio asignado -->
+                                        <div class="border-top pt-3">
+                                            <div class="alert alert-warning mb-0 text-center">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <strong>Sin Comercio Asignado</strong>
+                                                <br>
+                                                <small>Contacta al administrador para registrar tu comercio</small>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -362,6 +435,17 @@ foreach ($productosSocio as $producto) {
                         </div>
                     </div>
                 </div>
+                <?php else: ?>
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Sin Comercio Asignado</h5>
+                                <p class="text-muted mb-0">Para ver ventas recientes y estadísticas, primero necesitas tener un comercio asignado.</p>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
