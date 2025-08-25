@@ -98,6 +98,7 @@ class Producto {
             // Agregar imagen principal a cada producto
             foreach ($productos as &$producto) {
                 $producto['imagen_principal'] = $this->obtenerImagenPrincipal($producto['id']);
+                $producto['imagen'] = $producto['imagen_principal']; // Para compatibilidad
             }
             
             return $productos;
@@ -448,16 +449,61 @@ class Producto {
     /**
      * Obtener imagen principal de un producto
      */
-    private function obtenerImagenPrincipal($productoId) {
+    public function obtenerImagenPrincipal($productoId) {
         try {
-            $sql = "SELECT nombre_archivo FROM producto_imagenes WHERE producto_id = ? ORDER BY creado_en ASC LIMIT 1";
+            // Primero intentar obtener la imagen marcada como principal
+            $sql = "SELECT nombre_archivo FROM producto_imagenes WHERE producto_id = ? AND principal = 1 LIMIT 1";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$productoId]);
             $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            return $resultado ? $resultado['nombre_archivo'] : null;
-        } catch (PDOException $e) {
+            // Si no hay imagen principal, obtener la primera imagen disponible
+            if (!$resultado) {
+                $sql = "SELECT nombre_archivo FROM producto_imagenes WHERE producto_id = ? ORDER BY orden ASC, creado_en ASC LIMIT 1";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute([$productoId]);
+                $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+            
+            if ($resultado) {
+                // Retornar solo el nombre del archivo, la URL se construye en el controlador
+                return $resultado['nombre_archivo'];
+            }
+            
             return null;
+        } catch (PDOException $e) {
+            error_log("Error al obtener imagen principal: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Obtener todas las imágenes de un producto
+     */
+    public function obtenerImagenes($productoId) {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT * FROM producto_imagenes 
+                WHERE producto_id = ? 
+                ORDER BY principal DESC, orden ASC
+            ");
+            $stmt->execute([$productoId]);
+            $imagenes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Convertir rutas absolutas a URLs web
+            foreach ($imagenes as &$imagen) {
+                // Asegurar que nombre_archivo esté disponible
+                if (empty($imagen['nombre_archivo']) && !empty($imagen['ruta'])) {
+                    $imagen['nombre_archivo'] = basename($imagen['ruta']);
+                }
+                // La URL se construye en el controlador usando getProductImageUrl()
+                $imagen['ruta'] = $imagen['nombre_archivo'];
+            }
+            
+            return $imagenes;
+        } catch (PDOException $e) {
+            error_log("Error al obtener imágenes del producto: " . $e->getMessage());
+            return [];
         }
     }
 }

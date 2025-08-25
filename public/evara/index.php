@@ -1,8 +1,13 @@
-<?php require_once __DIR__ . '/../../includes/db.php'; ?>
-<?php require_once __DIR__ . '/../../controllers/productoController.php'; ?>
+<?php 
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/db.php'; 
+require_once __DIR__ . '/../../controllers/productoController.php'; 
 
-<?php
+// Configurar entorno
+define('ENVIRONMENT', 'development');
+
 // Obtener productos para mostrar en la página pública
+$pdo = getConnection();
 $productoController = new ProductoController($pdo);
 $resultado = $productoController->obtenerTodos(1, 50, ['status' => 'activo']); // Solo productos activos
 $productos = $resultado['productos'] ?? [];
@@ -91,9 +96,9 @@ $productos = $resultado['productos'] ?? [];
                                 <div class="product-cart-wrap mb-30">
                                 <div class="product-img-action-wrap">
                                     <div class="product-img product-img-zoom">
-                                    <a href="#">
-                                        <?php if (!empty($p['imagen'])): ?>
-                                            <img class="default-img" src="/ofm/uploads/<?= htmlspecialchars($p['imagen']) ?>" alt="<?= htmlspecialchars($p['nombre']) ?>">
+                                    <a href="producto-detalle.php?id=<?= $p['id'] ?>">
+                                        <?php if (!empty($p['imagen_principal'])): ?>
+                                            <img class="default-img" src="<?= getProductImageUrl($p['imagen_principal']) ?>" alt="<?= htmlspecialchars($p['nombre']) ?>">
                                         <?php else: ?>
                                             <img class="default-img" src="assets/imgs/shop/default.png" alt="Imagen no disponible">
                                         <?php endif; ?>
@@ -101,12 +106,12 @@ $productos = $resultado['productos'] ?? [];
                                     </div>
                                 </div>
                                 <div class="product-content-wrap">
-                                    <h2><a href="#"><?= htmlspecialchars($p['nombre']) ?></a></h2>
+                                    <h2><a href="producto-detalle.php?id=<?= $p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?></a></h2>
                                     <div class="product-price">
                                     <span>$<?= number_format($p['precio'], 2) ?></span>
                                     </div>
                                     <div class="product-action-1 show">
-                                    <a aria-label="Comprar ahora" class="action-btn hover-up" href="checkout.php?id=<?= $p['id'] ?>"><i class="fi-rs-shopping-bag-add"></i></a>
+                                    <a aria-label="Ver detalle" class="action-btn hover-up" href="producto-detalle.php?id=<?= $p['id'] ?>"><i class="fi-rs-eye"></i></a>
                                     </div>
                                 </div>
                                 </div>

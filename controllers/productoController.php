@@ -23,6 +23,11 @@ class ProductoController {
     // Crear nuevo producto
     public function crear($datos, $imagenes = []) {
         try {
+            error_log("DEBUG: ProductoController->crear llamado");
+            error_log("DEBUG: datos recibidos: " . print_r($datos, true));
+            error_log("DEBUG: imágenes recibidas: " . print_r($imagenes, true));
+            error_log("DEBUG: count de imágenes: " . count($imagenes));
+            
             // Validaciones básicas
             if (empty($datos['nombre']) || empty($datos['descripcion']) || empty($datos['precio'])) {
                 return ['success' => false, 'message' => 'Nombre, descripción y precio son obligatorios'];
@@ -34,14 +39,22 @@ class ProductoController {
 
             // Crear producto
             $resultado = $this->producto->crear($datos);
+            error_log("DEBUG: resultado de crear producto: " . print_r($resultado, true));
             
             if ($resultado['success'] && !empty($imagenes)) {
+                error_log("DEBUG: llamando a procesarImagenes");
+                // Reorganizar array de imágenes si es necesario
+                $imagenesReorganizadas = $this->reorganizarArrayImagenes($imagenes);
+                error_log("DEBUG: imágenes reorganizadas: " . print_r($imagenesReorganizadas, true));
                 // Procesar imágenes
-                $this->procesarImagenes($resultado['id'], $imagenes);
+                $this->procesarImagenes($resultado['id'], $imagenesReorganizadas);
+            } else {
+                error_log("DEBUG: NO se procesaron imágenes. success: " . ($resultado['success'] ? 'true' : 'false') . ", imágenes vacías: " . (empty($imagenes) ? 'true' : 'false'));
             }
 
             return $resultado;
         } catch (Exception $e) {
+            error_log("ERROR en crear producto: " . $e->getMessage());
             return ['success' => false, 'message' => 'Error al crear producto: ' . $e->getMessage()];
         }
     }
@@ -62,8 +75,10 @@ class ProductoController {
             $resultado = $this->producto->actualizar($id, $datos);
             
             if ($resultado['success'] && !empty($imagenes)) {
+                // Reorganizar array de imágenes si es necesario
+                $imagenesReorganizadas = $this->reorganizarArrayImagenes($imagenes);
                 // Procesar nuevas imágenes
-                $this->procesarImagenes($id, $imagenes);
+                $this->procesarImagenes($id, $imagenesReorganizadas);
             }
 
             return $resultado;
@@ -117,26 +132,129 @@ class ProductoController {
         }
     }
 
+    // Obtener productos simples (sin paginación)
+    public function obtenerProductos($filtros = []) {
+        try {
+            $productos = $this->producto->obtenerTodos(0, 1000, $filtros);
+            
+            // Agregar imagen principal a cada producto
+            foreach ($productos as &$producto) {
+                $producto['imagen_principal'] = $this->producto->obtenerImagenPrincipal($producto['id']);
+            }
+            unset($producto);
+            
+            return $productos;
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
     // Procesar imágenes subidas
     private function procesarImagenes($productoId, $imagenes) {
-        $directorioDestino = __DIR__ . '/../public/uploads/productos/';
+        error_log("DEBUG: procesarImagenes iniciado para producto ID: $productoId");
+        error_log("DEBUG: total de imágenes a procesar: " . count($imagenes));
         
-        // Crear directorio si no existe
-        if (!is_dir($directorioDestino)) {
-            mkdir($directorioDestino, 0755, true);
+        if (empty($imagenes)) {
+            error_log("DEBUG: no hay imágenes para procesar");
+            return;
         }
-
+        
+        $directorioDestino = __DIR__ . '/../public/uploads/productos/';
+        error_log("DEBUG: directorio destino: $directorioDestino");
+        
+        // Verificar que el directorio existe y es escribible
+        if (!is_dir($directorioDestino)) {
+            error_log("DEBUG: creando directorio: $directorioDestino");
+            if (!mkdir($directorioDestino, 0777, true)) {
+                error_log("ERROR: no se pudo crear el directorio: $directorioDestino");
+                return;
+            }
+        }
+        
+        if (!is_writable($directorioDestino)) {
+            error_log("ERROR: directorio no es escribible: $directorioDestino");
+            return;
+        }
+        
+        error_log("DEBUG: directorio verificado y es escribible");
+        
+        $orden = 1;
+        $principal = true; // La primera imagen será la principal
+        
         foreach ($imagenes as $imagen) {
-            if ($imagen['error'] === UPLOAD_ERR_OK) {
-                $nombreArchivo = $this->generarNombreArchivo($imagen['name']);
-                $rutaCompleta = $directorioDestino . $nombreArchivo;
-
-                if (move_uploaded_file($imagen['tmp_name'], $rutaCompleta)) {
-                    // Guardar en base de datos
-                    $this->guardarImagen($productoId, $nombreArchivo);
+            error_log("DEBUG: procesando imagen: " . print_r($imagen, true));
+            
+            if ($imagen['error'] !== UPLOAD_ERR_OK) {
+                error_log("DEBUG: error en imagen: " . $imagen['error']);
+                continue;
+            }
+            
+            if (!file_exists($imagen['tmp_name'])) {
+                error_log("ERROR: archivo temporal no existe: " . $imagen['tmp_name']);
+                continue;
+            }
+            
+            // Generar nombre único para el archivo
+            $extension = pathinfo($imagen['name'], PATHINFO_EXTENSION);
+            $nombreArchivo = uniqid() . '_' . time() . '.' . $extension;
+            $rutaCompleta = $directorioDestino . $nombreArchivo;
+            
+            error_log("DEBUG: intentando mover archivo a: $rutaCompleta");
+            
+            // Intentar move_uploaded_file primero
+            $archivoMovido = false;
+            if (move_uploaded_file($imagen['tmp_name'], $rutaCompleta)) {
+                error_log("DEBUG: move_uploaded_file exitoso");
+                $archivoMovido = true;
+            } else {
+                error_log("DEBUG: move_uploaded_file falló, intentando copy");
+                
+                // Fallback: usar copy si move_uploaded_file falla
+                if (copy($imagen['tmp_name'], $rutaCompleta)) {
+                    error_log("DEBUG: copy exitoso como fallback");
+                    $archivoMovido = true;
+                } else {
+                    error_log("ERROR: tanto move_uploaded_file como copy fallaron");
+                    $error = error_get_last();
+                    if ($error) {
+                        error_log("ERROR: " . $error['message']);
+                    }
+                    continue;
+                }
+            }
+            
+            if ($archivoMovido) {
+                // Verificar que el archivo se creó correctamente
+                if (file_exists($rutaCompleta)) {
+                    error_log("DEBUG: archivo creado exitosamente: $rutaCompleta");
+                    error_log("DEBUG: tamaño del archivo: " . filesize($rutaCompleta) . " bytes");
+                    
+                    // Guardar información en la base de datos
+                    $datosImagen = [
+                        'producto_id' => $productoId,
+                        'nombre_archivo' => $nombreArchivo,
+                        'ruta' => $nombreArchivo, // Solo el nombre del archivo, no la ruta completa
+                        'tipo' => $imagen['type'],
+                        'orden' => $orden,
+                        'principal' => $principal
+                    ];
+                    
+                    $resultado = $this->guardarImagen($datosImagen);
+                    if ($resultado) {
+                        error_log("DEBUG: imagen guardada en BD con ID: " . $resultado);
+                    } else {
+                        error_log("ERROR: no se pudo guardar imagen en BD");
+                    }
+                    
+                    $orden++;
+                    $principal = false; // Solo la primera es principal
+                } else {
+                    error_log("ERROR: archivo no existe después de mover: $rutaCompleta");
                 }
             }
         }
+        
+        error_log("DEBUG: procesarImagenes completado");
     }
 
     // Generar nombre único para archivo
@@ -150,26 +268,46 @@ class ProductoController {
     }
 
     // Guardar imagen en base de datos
-    private function guardarImagen($productoId, $nombreArchivo) {
+    private function guardarImagen($datosImagen) {
         try {
-            $sql = "INSERT INTO producto_imagenes (producto_id, nombre_archivo, creado_en) VALUES (?, ?, NOW())";
+            error_log("DEBUG: guardarImagen - productoId: " . $datosImagen['producto_id'] . ", archivo: " . $datosImagen['nombre_archivo'] . ", principal: " . ($datosImagen['principal'] ? 'SÍ' : 'NO') . ", orden: " . $datosImagen['orden']);
+            
+            $sql = "INSERT INTO producto_imagenes (producto_id, nombre_archivo, ruta, tipo, orden, principal, creado_en) VALUES (?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([$productoId, $nombreArchivo]);
+            $resultado = $stmt->execute([
+                $datosImagen['producto_id'],
+                $datosImagen['nombre_archivo'],
+                $datosImagen['ruta'],
+                $datosImagen['tipo'],
+                $datosImagen['orden'],
+                $datosImagen['principal'] ? 1 : 0
+            ]);
+            
+            if ($resultado) {
+                return $this->pdo->lastInsertId();
+            } else {
+                error_log("ERROR: fallo al ejecutar INSERT en BD");
+                return false;
+            }
         } catch (PDOException $e) {
-            error_log("Error al guardar imagen: " . $e->getMessage());
+            error_log("ERROR al guardar imagen: " . $e->getMessage());
+            return false;
         }
     }
 
     // Obtener imágenes de un producto
-    private function obtenerImagenes($productoId) {
+    public function obtenerImagenes($productoId) {
         try {
-            $sql = "SELECT * FROM producto_imagenes WHERE producto_id = ? ORDER BY creado_en ASC";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([$productoId]);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Usar el modelo para obtener las imágenes procesadas
+            return $this->producto->obtenerImagenes($productoId);
         } catch (PDOException $e) {
             return [];
         }
+    }
+
+    // Obtener todas las imágenes de un producto (alias para compatibilidad)
+    public function obtenerTodasImagenes($productoId) {
+        return $this->obtenerImagenes($productoId);
     }
 
     // Eliminar imagen
@@ -251,6 +389,33 @@ class ProductoController {
                 'productos_destacados' => 0
             ];
         }
+    }
+    
+    // Reorganizar array de imágenes de $_FILES a formato estándar
+    private function reorganizarArrayImagenes($imagenes) {
+        // Si ya está en el formato correcto, retornar tal como está
+        if (empty($imagenes) || !isset($imagenes['name']) || !is_array($imagenes['name'])) {
+            return $imagenes;
+        }
+        
+        $imagenesReorganizadas = [];
+        $totalImagenes = count($imagenes['name']);
+        
+        for ($i = 0; $i < $totalImagenes; $i++) {
+            // Solo procesar si no hay errores de upload
+            if ($imagenes['error'][$i] === UPLOAD_ERR_OK) {
+                $imagenesReorganizadas[] = [
+                    'name' => $imagenes['name'][$i],
+                    'type' => $imagenes['type'][$i],
+                    'tmp_name' => $imagenes['tmp_name'][$i],
+                    'error' => $imagenes['error'][$i],
+                    'size' => $imagenes['size'][$i]
+                ];
+            }
+        }
+        
+        error_log("DEBUG: reorganizarArrayImagenes - entrada: " . count($imagenes['name']) . ", salida: " . count($imagenesReorganizadas));
+        return $imagenesReorganizadas;
     }
 }
 

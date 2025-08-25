@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../controllers/loginController.php';
 
 // Verificar que el usuario esté autenticado y sea socio
@@ -15,21 +16,10 @@ require_once __DIR__ . '/../../models/Producto.php';
 $productoModel = new Producto($pdo);
 $productos = $productoModel->obtenerPorSocio($usuario['id']);
 
-// Obtener imágenes para cada producto
+// Obtener imágenes para cada producto usando el modelo
 foreach ($productos as &$producto) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT ruta FROM producto_imagenes 
-            WHERE producto_id = ? AND principal = 1 
-            ORDER BY orden ASC 
-            LIMIT 1
-        ");
-        $stmt->execute([$producto['id']]);
-        $imagen = $stmt->fetch(PDO::FETCH_ASSOC);
-        $producto['imagen'] = $imagen ? $imagen['ruta'] : null;
-    } catch (Exception $e) {
-        $producto['imagen'] = null;
-    }
+    $imagenPrincipal = $productoModel->obtenerImagenPrincipal($producto['id']);
+    $producto['imagen'] = $imagenPrincipal ? getProductImageUrl($imagenPrincipal) : null;
 }
 unset($producto);
 

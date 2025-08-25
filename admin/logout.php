@@ -1,24 +1,25 @@
 <?php
 /**
- * Archivo de logout para el sistema administrativo OFM
- * Maneja el cierre de sesión de forma segura
+ * Logout del Panel Administrativo OFM
  */
 
-// Incluir helper de sesiones
-require_once __DIR__ . '/../includes/session_helper.php';
+session_start();
 
-// Iniciar sesión de forma segura
-iniciarSesionSegura();
+// Limpiar todas las variables de sesión
+$_SESSION = array();
 
-require_once __DIR__ . '/../controllers/loginController_simple.php';
+// Destruir la sesión
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000,
+        $params["path"], $params["domain"],
+        $params["secure"], $params["httponly"]
+    );
+}
 
-// Crear instancia del controlador
-$loginController = new LoginControllerSimple($pdo);
+session_destroy();
 
-// Cerrar la sesión
-$resultado = $loginController->cerrarSesion();
-
-// Redirigir a la página de login
+// Redirigir al login principal
 header('Location: /ofm/public/evara/page-login-register.php?logout=success');
 exit;
 ?>

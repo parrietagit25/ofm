@@ -187,6 +187,7 @@ class LoginController {
 }
 
 // Instanciar controlador
+$pdo = getConnection();
 $loginController = new LoginController($pdo);
 
 // Procesar acciones si se reciben por POST

@@ -1,12 +1,15 @@
 <?php
-// Verificar que el usuario esté autenticado y sea admin
-if (!isset($loginController) || !$loginController->estaAutenticado() || !$loginController->tieneRol('admin')) {
-    header('Location: ../controllers/loginController.php');
-    exit;
+// La autenticación ya se verificó en auth_check.php
+// Solo obtener información del usuario si está disponible
+$usuario = null;
+if (isset($_SESSION['usuario_id']) && $_SESSION['usuario_rol'] === 'admin') {
+    $usuario = [
+        'id' => $_SESSION['usuario_id'],
+        'nombre' => $_SESSION['usuario_nombre'] ?? 'Administrador',
+        'email' => $_SESSION['usuario_email'] ?? '',
+        'rol' => $_SESSION['usuario_rol']
+    ];
 }
-
-// Obtener información del usuario actual
-$usuario = $loginController->obtenerUsuarioActual();
 ?>
 
 <!-- Navbar -->

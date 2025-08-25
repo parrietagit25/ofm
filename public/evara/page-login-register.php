@@ -15,7 +15,57 @@ $texts = require __DIR__ . '/lang/' . $lang . '.php';
 
 // Inicializar controlador de autenticación simplificado
 require_once __DIR__ . '/../../controllers/loginController_simple.php';
+$pdo = getConnection();
 $loginController = new LoginControllerSimple($pdo);
+
+// Procesar login si se envía por POST
+$error = '';
+$success = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    
+    if ($action === 'login') {
+        $email = $_POST['email'] ?? '';
+        $clave = $_POST['clave'] ?? '';
+        
+        // DEBUG: Mostrar información del login
+        error_log("DEBUG: Intentando login para email: " . $email);
+        
+        $resultado = $loginController->procesarLogin($email, $clave);
+        
+        // DEBUG: Mostrar resultado del login
+        error_log("DEBUG: Resultado del login: " . json_encode($resultado));
+        
+        if ($resultado['success']) {
+            // DEBUG: Mostrar redirección
+            error_log("DEBUG: Login exitoso, redirigiendo a: " . $resultado['redirect']);
+            
+            // Login exitoso, redirigir
+            header("Location: " . $resultado['redirect']);
+            exit;
+        } else {
+            $error = $resultado['message'];
+            error_log("DEBUG: Error en login: " . $error);
+        }
+    } elseif ($action === 'registro') {
+        $nombre = $_POST['nombre'] ?? '';
+        $apellido = $_POST['apellido'] ?? '';
+        $email = $_POST['email'] ?? '';
+        $clave = $_POST['clave'] ?? '';
+        $telefono = $_POST['telefono'] ?? '';
+        
+        $resultado = $loginController->procesarRegistro($nombre, $apellido, $email, $clave, $telefono);
+        
+        if ($resultado['success']) {
+            // Registro exitoso, redirigir
+            header("Location: " . $resultado['redirect']);
+            exit;
+        } else {
+            $error = $resultado['message'];
+        }
+    }
+}
 
 // Si ya está autenticado, redirigir al dashboard correspondiente
 if ($loginController->estaAutenticado()) {
@@ -23,7 +73,7 @@ if ($loginController->estaAutenticado()) {
 }
 
 // Obtener mensajes de error si existen
-$error = $_GET['error'] ?? '';
+$error = $error ?: ($_GET['error'] ?? '');
 $success = $_GET['success'] ?? '';
 
 // Obtener mensaje de logout exitoso
@@ -72,8 +122,22 @@ $logoutSuccess = $_GET['logout'] ?? '';
                                 <div class="login_wrap widget-taber-content p-30 background-white border-radius-10 mb-md-5 mb-lg-0 mb-sm-5">
                                     <div class="padding_eight_all bg-white">
                                         <div class="heading_s1">
-                                            <h3 class="mb-30"><?= $texts['login'] ?></h3>
+                                            <h3 class="mb-30">
+                                                <?php if (isset($_GET['redirect']) && $_GET['redirect'] === 'admin'): ?>
+                                                    <i class="fas fa-shield-alt text-primary me-2"></i>
+                                                    Acceso Administrativo
+                                                <?php else: ?>
+                                                    <?= $texts['login'] ?>
+                                                <?php endif; ?>
+                                            </h3>
                                         </div>
+                                        
+                                        <?php if (isset($_GET['redirect']) && $_GET['redirect'] === 'admin'): ?>
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                <strong>Panel Administrativo:</strong> Ingresa con tus credenciales de administrador para acceder al panel de control.
+                                            </div>
+                                        <?php endif; ?>
                                         
                                         <?php if ($error): ?>
                                             <div class="alert alert-danger">
@@ -88,7 +152,7 @@ $logoutSuccess = $_GET['logout'] ?? '';
                                             </div>
                                         <?php endif; ?>
                                         
-                                        <form method="post" action="/ofm/controllers/loginController_simple.php">
+                                        <form method="post" action="">
                                             <input type="hidden" name="action" value="login">
                                             <div class="form-group">
                                                 <input type="email" required="" name="email" placeholder="<?= $texts['email'] ?>">
@@ -136,7 +200,7 @@ $logoutSuccess = $_GET['logout'] ?? '';
                                             </div>
                                         <?php endif; ?>
                                         
-                                        <form method="post" action="/ofm/controllers/loginController_simple.php">
+                                        <form method="post" action="">
                                             <input type="hidden" name="action" value="registro">
                                             <div class="form-group">
                                                 <input type="text" required="" name="nombre" placeholder="Nombre">

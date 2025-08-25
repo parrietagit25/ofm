@@ -24,23 +24,38 @@ class LoginControllerSimple {
 
     // Login con email y contraseña
     public function procesarLogin($email, $clave) {
+        // DEBUG: Log del inicio del método
+        error_log("DEBUG: LoginController::procesarLogin iniciado para email: " . $email);
+        
         // Validaciones básicas
         if (empty($email)) {
+            error_log("DEBUG: Email vacío");
             return ['success' => false, 'message' => 'El email es obligatorio'];
         }
 
         if (empty($clave)) {
+            error_log("DEBUG: Contraseña vacía");
             return ['success' => false, 'message' => 'La contraseña es obligatoria'];
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            error_log("DEBUG: Email inválido: " . $email);
             return ['success' => false, 'message' => 'Formato de email inválido'];
         }
 
+        // DEBUG: Intentando autenticar
+        error_log("DEBUG: Intentando autenticar usuario...");
+        
         // Autenticar usuario con contraseña
         $usuario = $this->usuario->autenticar($email, $clave);
         
+        // DEBUG: Resultado de autenticación
+        error_log("DEBUG: Resultado de autenticación: " . ($usuario ? "Usuario encontrado" : "Usuario no encontrado"));
+        
         if ($usuario) {
+            // DEBUG: Información del usuario
+            error_log("DEBUG: Usuario autenticado - ID: " . $usuario['id'] . ", Rol: " . $usuario['rol']);
+            
             // Crear sesión
             $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['usuario_nombre'] = $usuario['nombre'] . ' ' . $usuario['apellido'];
@@ -49,13 +64,17 @@ class LoginControllerSimple {
             $_SESSION['usuario_activo'] = $usuario['activo'];
             $_SESSION['login_time'] = time();
 
+            $redirect = $this->obtenerUrlDashboard($usuario['rol']);
+            error_log("DEBUG: Redirigiendo a: " . $redirect);
+
             return [
                 'success' => true, 
                 'message' => 'Login exitoso',
                 'rol' => $usuario['rol'],
-                'redirect' => $this->obtenerUrlDashboard($usuario['rol'])
+                'redirect' => $redirect
             ];
         } else {
+            error_log("DEBUG: Autenticación fallida");
             return ['success' => false, 'message' => 'Email o contraseña incorrectos'];
         }
     }
@@ -191,49 +210,4 @@ class LoginControllerSimple {
     }
 }
 
-// Instanciar controlador
-$loginController = new LoginControllerSimple($pdo);
-
-// Procesar acciones si se reciben por POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    
-    switch ($action) {
-        case 'login':
-            $email = $_POST['email'] ?? '';
-            $clave = $_POST['clave'] ?? '';
-            $resultado = $loginController->procesarLogin($email, $clave);
-            
-            if ($resultado['success']) {
-                header("Location: " . $resultado['redirect']);
-                exit;
-            } else {
-                $error = $resultado['message'];
-            }
-            break;
-            
-        case 'registro':
-            $nombre = $_POST['nombre'] ?? '';
-            $apellido = $_POST['apellido'] ?? '';
-            $email = $_POST['email'] ?? '';
-            $clave = $_POST['clave'] ?? '';
-            $telefono = $_POST['telefono'] ?? '';
-            
-            $resultado = $loginController->procesarRegistro($nombre, $apellido, $email, $clave, $telefono);
-            
-            if ($resultado['success']) {
-                header("Location: " . $resultado['redirect']);
-                exit;
-            } else {
-                $error = $resultado['message'];
-            }
-            break;
-            
-        case 'logout':
-            $loginController->cerrarSesion();
-            header('Location: /ofm/public/evara/page-login-register.php');
-            exit;
-            break;
-    }
-}
 ?>

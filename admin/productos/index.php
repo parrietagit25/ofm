@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../controllers/loginController_simple.php';
 
 // Verificar acceso de administrador
+$pdo = getConnection();
 $loginController = new LoginControllerSimple($pdo);
 $loginController->verificarAcceso('admin');
 

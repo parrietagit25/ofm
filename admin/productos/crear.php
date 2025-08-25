@@ -6,10 +6,82 @@
 require_once __DIR__ . '/../../includes/session_helper.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../controllers/loginController_simple.php';
+require_once __DIR__ . '/../../controllers/productoController.php';
 
 // Verificar acceso de administrador
 $loginController = new LoginControllerSimple($pdo);
 $loginController->verificarAcceso('admin');
+
+// Procesar formulario cuando se envía
+$mensaje = '';
+$tipoMensaje = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Debugging: Log de lo que se recibe
+    error_log("DEBUG: Formulario POST recibido en crear.php");
+    error_log("DEBUG: POST data: " . print_r($_POST, true));
+    error_log("DEBUG: FILES data: " . print_r($_FILES, true));
+    
+    try {
+        // Validar datos del formulario
+        $nombre = trim($_POST['nombre'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+        $precio = floatval($_POST['precio'] ?? 0);
+        $precioOferta = !empty($_POST['precio_oferta']) ? floatval($_POST['precio_oferta']) : null;
+        $stock = intval($_POST['stock'] ?? 0);
+        $categoria = trim($_POST['categoria'] ?? '');
+        $marca = trim($_POST['marca'] ?? '');
+        $comercioId = intval($_POST['comercio_id'] ?? 0);
+        $codigoProducto = trim($_POST['codigo_producto'] ?? '');
+        $peso = !empty($_POST['peso']) ? floatval($_POST['peso']) : null;
+        $dimensiones = trim($_POST['dimensiones'] ?? '');
+        $destacado = isset($_POST['destacado']) ? 1 : 0;
+        
+        // Validaciones básicas
+        if (empty($nombre) || empty($descripcion) || $precio <= 0) {
+            throw new Exception('Nombre, descripción y precio son obligatorios');
+        }
+        
+        if ($precioOferta && $precioOferta >= $precio) {
+            throw new Exception('El precio de oferta debe ser menor al precio normal');
+        }
+        
+        // Preparar datos del producto
+        $datosProducto = [
+            'nombre' => $nombre,
+            'descripcion' => $descripcion,
+            'precio' => $precio,
+            'precio_oferta' => $precioOferta,
+            'stock' => $stock,
+            'categoria' => $categoria,
+            'marca' => $marca,
+            'comercio_id' => $comercioId,
+            'codigo_producto' => $codigoProducto,
+            'peso' => $peso,
+            'dimensiones' => $dimensiones,
+            'destacado' => $destacado,
+            'status' => 'activo'
+        ];
+        
+        // Crear producto
+        $productoController = new ProductoController($pdo);
+        $resultado = $productoController->crear($datosProducto, $_FILES['imagenes'] ?? []);
+        
+        if ($resultado['success']) {
+            $mensaje = 'Producto creado exitosamente';
+            $tipoMensaje = 'success';
+            
+            // Limpiar formulario
+            $_POST = [];
+        } else {
+            throw new Exception($resultado['message']);
+        }
+        
+    } catch (Exception $e) {
+        $mensaje = 'Error: ' . $e->getMessage();
+        $tipoMensaje = 'danger';
+    }
+}
 
 // Obtener comercios para el formulario
 $comercios = [];
@@ -124,6 +196,15 @@ $error = $_GET['error'] ?? '';
             <!-- Main content -->
             <section class="content">
                 <div class="container-fluid">
+                    <!-- Mensajes de éxito/error -->
+                    <?php if ($mensaje): ?>
+                        <div class="alert alert-<?= $tipoMensaje ?> alert-dismissible">
+                            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+                            <i class="fas fa-<?= $tipoMensaje === 'success' ? 'check-circle' : 'exclamation-circle' ?>"></i> 
+                            <?= htmlspecialchars($mensaje) ?>
+                        </div>
+                    <?php endif; ?>
+                    
                     <!-- Mensajes de error -->
                     <?php if ($error): ?>
                         <div class="alert alert-danger alert-dismissible">
@@ -137,7 +218,7 @@ $error = $_GET['error'] ?? '';
                             <h3 class="card-title">Información del Producto</h3>
                         </div>
                         <div class="card-body">
-                            <form method="POST" action="/ofm/controllers/productoController.php" enctype="multipart/form-data" id="productoForm">
+                            <form method="POST" action="/ofm/admin/productos/crear.php" enctype="multipart/form-data" id="productoForm">
                                 <input type="hidden" name="action" value="crear">
                                 
                                 <div class="row">
@@ -147,13 +228,14 @@ $error = $_GET['error'] ?? '';
                                         <div class="form-group">
                                             <label for="nombre">Nombre del Producto *</label>
                                             <input type="text" class="form-control" id="nombre" name="nombre" required 
-                                                   placeholder="Ej: Smartphone Samsung Galaxy S21">
+                                                   placeholder="Ej: Smartphone Samsung Galaxy S21"
+                                                   value="<?= htmlspecialchars($_POST['nombre'] ?? '') ?>">
                                         </div>
                                         
                                         <div class="form-group">
                                             <label for="descripcion">Descripción *</label>
                                             <textarea class="form-control" id="descripcion" name="descripcion" rows="4" required
-                                                      placeholder="Describe las características principales del producto..."></textarea>
+                                                      placeholder="Describe las características principales del producto..."><?= htmlspecialchars($_POST['descripcion'] ?? '') ?></textarea>
                                         </div>
                                         
                                         <div class="row">
@@ -165,7 +247,8 @@ $error = $_GET['error'] ?? '';
                                                             <span class="input-group-text">$</span>
                                                         </div>
                                                         <input type="number" class="form-control" id="precio" name="precio" 
-                                                               step="0.01" min="0" required placeholder="0.00">
+                                                               step="0.01" min="0" required placeholder="0.00"
+                                                               value="<?= htmlspecialchars($_POST['precio'] ?? '') ?>">
                                                     </div>
                                                 </div>
                                             </div>
@@ -177,7 +260,8 @@ $error = $_GET['error'] ?? '';
                                                             <span class="input-group-text">$</span>
                                                         </div>
                                                         <input type="number" class="form-control" id="precio_oferta" name="precio_oferta" 
-                                                               step="0.01" min="0" placeholder="0.00">
+                                                               step="0.01" min="0" placeholder="0.00"
+                                                               value="<?= htmlspecialchars($_POST['precio_oferta'] ?? '') ?>">
                                                     </div>
                                                 </div>
                                             </div>
@@ -277,14 +361,14 @@ $error = $_GET['error'] ?? '';
                                         
                                         <!-- Imágenes -->
                                         <div class="form-group">
-                                            <label>Imágenes del Producto</label>
+                                            <label>Imágenes del Producto *</label>
                                             <div class="custom-file">
                                                 <input type="file" class="custom-file-input" id="imagenes" name="imagenes[]" 
-                                                       multiple accept="image/*">
+                                                       multiple accept="image/*" required>
                                                 <label class="custom-file-label" for="imagenes">Seleccionar imágenes...</label>
                                             </div>
                                             <small class="form-text text-muted">
-                                                Puedes seleccionar múltiples imágenes. Formatos: JPG, PNG, GIF. Máximo 5 imágenes.
+                                                Selecciona al menos 1 imagen. Formatos: JPG, PNG, GIF. Máximo 5 imágenes.
                                             </small>
                                         </div>
                                         
@@ -294,6 +378,19 @@ $error = $_GET['error'] ?? '';
                                                 <i class="fas fa-plus fa-2x"></i>
                                                 <br>
                                                 <small>Agregar imagen</small>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Controles de imagen -->
+                                        <div id="imageControls" class="mt-3" style="display: none;">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle"></i>
+                                                <strong>Gestión de imágenes:</strong>
+                                                <ul class="mb-0 mt-2">
+                                                    <li>Arrastra las imágenes para cambiar el orden</li>
+                                                    <li>La primera imagen será la imagen principal</li>
+                                                    <li>Haz clic en × para eliminar una imagen</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     </div>
@@ -326,50 +423,128 @@ $error = $_GET['error'] ?? '';
     
     <script>
         $(document).ready(function() {
+            let selectedFiles = [];
+            
             // Manejo de archivos de imagen
             $('#imagenes').change(function() {
                 const files = this.files;
+                console.log('Archivos seleccionados:', files);
+                selectedFiles = Array.from(files);
+                console.log('selectedFiles actualizado:', selectedFiles);
+                updateImagePreview();
+            });
+            
+            // Función para actualizar vista previa
+            function updateImagePreview() {
                 const container = $('#imagePreviewContainer');
+                const controls = $('#imageControls');
                 
                 // Limpiar contenedor
                 container.empty();
                 
-                if (files.length > 0) {
+                if (selectedFiles.length > 0) {
+                    // Mostrar controles
+                    controls.show();
+                    
                     // Mostrar vista previa de cada imagen
-                    for (let i = 0; i < Math.min(files.length, 5); i++) {
-                        const file = files[i];
+                    selectedFiles.forEach((file, index) => {
                         const reader = new FileReader();
                         
                         reader.onload = function(e) {
-                            const imageContainer = $('<div class="image-container">');
+                            const imageContainer = $('<div class="image-container" data-index="' + index + '">');
                             const imagePreview = $('<div class="image-preview">');
                             const img = $('<img src="' + e.target.result + '" alt="Vista previa">');
                             const removeBtn = $('<button type="button" class="remove-image" title="Eliminar imagen">×</button>');
+                            const orderBadge = $('<span class="badge badge-primary" style="position: absolute; top: 5px; left: 5px;">' + (index + 1) + '</span>');
+                            const principalBadge = index === 0 ? $('<span class="badge badge-success" style="position: absolute; bottom: 5px; left: 5px;">Principal</span>') : $('');
                             
                             imagePreview.append(img);
+                            imagePreview.append(orderBadge);
+                            if (index === 0) {
+                                imagePreview.append(principalBadge);
+                            }
                             imageContainer.append(imagePreview);
                             imageContainer.append(removeBtn);
                             container.append(imageContainer);
                             
                             // Evento para eliminar imagen
                             removeBtn.click(function() {
-                                imageContainer.remove();
+                                const indexToRemove = parseInt(imageContainer.data('index'));
+                                selectedFiles.splice(indexToRemove, 1);
+                                updateImagePreview();
                                 updateFileInput();
                             });
                         };
                         
                         reader.readAsDataURL(file);
-                    }
+                    });
+                    
+                    // Hacer las imágenes arrastrables
+                    makeImagesDraggable();
                 } else {
-                    // Mostrar template vacío
+                    // Ocultar controles y mostrar template vacío
+                    controls.hide();
                     container.append($('#imagePreviewTemplate').clone());
                 }
-            });
+            }
             
-            // Actualizar input de archivos cuando se eliminan imágenes
+            // Función para hacer las imágenes arrastrables
+            function makeImagesDraggable() {
+                $('.image-container').each(function() {
+                    $(this).attr('draggable', true);
+                    
+                    $(this).on('dragstart', function(e) {
+                        e.originalEvent.dataTransfer.setData('text/plain', $(this).data('index'));
+                    });
+                    
+                    $(this).on('dragover', function(e) {
+                        e.preventDefault();
+                        $(this).addClass('drag-over');
+                    });
+                    
+                    $(this).on('dragleave', function() {
+                        $(this).removeClass('drag-over');
+                    });
+                    
+                    $(this).on('drop', function(e) {
+                        e.preventDefault();
+                        $(this).removeClass('drag-over');
+                        
+                        const fromIndex = parseInt(e.originalEvent.dataTransfer.getData('text/plain'));
+                        const toIndex = parseInt($(this).data('index'));
+                        
+                        if (fromIndex !== toIndex) {
+                            // Reordenar archivos
+                            const file = selectedFiles[fromIndex];
+                            selectedFiles.splice(fromIndex, 1);
+                            selectedFiles.splice(toIndex, 0, file);
+                            
+                            updateImagePreview();
+                        }
+                    });
+                });
+            }
+            
+            // Función para actualizar el input de archivos
             function updateFileInput() {
-                // Esta función se puede implementar para sincronizar el input de archivos
-                // con las imágenes mostradas en la vista previa
+                console.log('updateFileInput llamado con selectedFiles:', selectedFiles);
+                
+                // Crear un nuevo FileList con los archivos seleccionados
+                const dt = new DataTransfer();
+                selectedFiles.forEach(file => dt.items.add(file));
+                
+                console.log('DataTransfer creado con', dt.files.length, 'archivos');
+                
+                // Actualizar el input
+                $('#imagenes')[0].files = dt.files;
+                
+                console.log('Input actualizado. Archivos en input:', $('#imagenes')[0].files);
+                
+                // Actualizar la etiqueta
+                const fileName = selectedFiles.length > 0 ? 
+                    selectedFiles.length + ' imagen(es) seleccionada(s)' : 
+                    'Seleccionar imágenes...';
+                $('#imagenes').next('.custom-file-label').html(fileName);
             }
             
             // Validación del formulario
@@ -403,15 +578,50 @@ $error = $_GET['error'] ?? '';
                     return false;
                 }
                 
+                if (selectedFiles.length === 0) {
+                    alert('Debes seleccionar al menos una imagen para el producto');
+                    e.preventDefault();
+                    return false;
+                }
+                
+                // CRÍTICO: Sincronizar archivos antes del envío
+                updateFileInput();
+                
                 // Mostrar indicador de carga
                 $(this).find('button[type="submit"]').html('<i class="fas fa-spinner fa-spin"></i> Creando...').prop('disabled', true);
             });
             
             // Actualizar etiqueta del input de archivos
             $('.custom-file-input').on('change', function() {
-                const fileName = $(this).val().split('\\').pop();
-                $(this).next('.custom-file-label').html(fileName || 'Seleccionar imágenes...');
+                const files = this.files;
+                const fileName = files.length > 0 ? 
+                    files.length + ' imagen(es) seleccionada(s)' : 
+                    'Seleccionar imágenes...';
+                $(this).next('.custom-file-label').html(fileName);
             });
+            
+            // Agregar estilos CSS para drag & drop
+            $('<style>')
+                .prop('type', 'text/css')
+                .html(`
+                    .image-container.drag-over {
+                        transform: scale(1.05);
+                        box-shadow: 0 0 20px rgba(0,123,255,0.5);
+                        transition: all 0.2s ease;
+                    }
+                    .image-container {
+                        cursor: move;
+                        transition: all 0.2s ease;
+                    }
+                    .image-container:hover {
+                        transform: scale(1.02);
+                    }
+                    .badge {
+                        font-size: 10px;
+                        padding: 3px 6px;
+                    }
+                `)
+                .appendTo('head');
         });
     </script>
 </body>

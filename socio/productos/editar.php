@@ -16,27 +16,17 @@ $comercioModel = new Comercio($pdo);
 $comercios = $comercioModel->obtenerPorUsuarioSocio($usuario['id']);
 
 if (empty($comercios)) {
-    header('Location: ../dashboard.php');
-    exit;
+    $mensaje = 'Debes tener un comercio registrado para editar productos. Contacta al administrador.';
+    $tipoMensaje = 'warning';
+    $comercio_id = null;
+} else {
+    $comercio_id = $comercios[0]['id'];
 }
 
-$comercio_id = $comercios[0]['id'];
+// Obtener ID del producto a editar
+$producto_id = $_GET['id'] ?? null;
 
-// Verificar que se proporcione un ID de producto
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    header('Location: index.php');
-    exit;
-}
-
-$producto_id = intval($_GET['id']);
-
-// Obtener el producto
-require_once __DIR__ . '/../../models/Producto.php';
-$productoModel = new Producto($pdo);
-$producto = $productoModel->obtenerPorId($producto_id);
-
-// Verificar que el producto exista y pertenezca al socio
-if (!$producto || $producto['comercio_id'] != $comercio_id) {
+if (!$producto_id) {
     header('Location: index.php');
     exit;
 }
@@ -48,14 +38,16 @@ $categorias = ['Electrónicos', 'Ropa', 'Hogar', 'Deportes', 'Belleza', 'Juguete
 $mensaje = '';
 $tipoMensaje = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $comercio_id) {
+    require_once __DIR__ . '/../../controllers/productoController.php';
+    $productoController = new ProductoController($pdo);
+    
     $nombre = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $precio = floatval($_POST['precio'] ?? 0);
-    $precio_anterior = floatval($_POST['precio_anterior'] ?? 0);
+    $precio_original = floatval($_POST['precio_original'] ?? 0);
     $stock = intval($_POST['stock'] ?? 0);
     $categoria = trim($_POST['categoria'] ?? '');
-    $status = trim($_POST['status'] ?? 'activo');
     
     // Validaciones
     if (empty($nombre)) {
@@ -68,92 +60,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mensaje = 'El stock no puede ser negativo';
         $tipoMensaje = 'danger';
     } else {
-        // Procesar imagen si se subió
-        $imagen = '';
-        if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/../../uploads/productos/';
-            
-            // Crear directorio si no existe
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-            
-            $fileExtension = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
-            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-            
-            if (in_array($fileExtension, $allowedExtensions)) {
-                $fileName = uniqid() . '.' . $fileExtension;
-                $uploadPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($_FILES['imagen']['tmp_name'], $uploadPath)) {
-                    $imagen = '/ofm/uploads/productos/' . $fileName;
-                }
-            }
-        }
-        
         // Actualizar producto
         $datos = [
+            'id' => $producto_id,
+            'comercio_id' => $comercio_id,
             'nombre' => $nombre,
             'descripcion' => $descripcion,
             'precio' => $precio,
-            'precio_anterior' => $precio_anterior > 0 ? $precio_anterior : null,
+            'precio_anterior' => $precio_original > 0 ? $precio_original : null,
             'stock' => $stock,
             'categoria' => $categoria,
-            'status' => $status
+            'marca' => null,
+            'codigo_producto' => null,
+            'peso' => null,
+            'dimensiones' => null,
+            'status' => 'activo',
+            'destacado' => 0
         ];
         
-        $resultado = $productoModel->actualizar($producto_id, $datos);
+        // Obtener imágenes del formulario
+        $imagenes = $_FILES['imagenes'] ?? [];
+        
+        $resultado = $productoController->actualizar($datos, $imagenes);
         
         if ($resultado['success']) {
-            // Si hay nueva imagen, actualizarla en la tabla producto_imagenes
-            if (!empty($imagen)) {
-                try {
-                    // Eliminar imagen anterior si existe
-                    $stmt = $pdo->prepare("DELETE FROM producto_imagenes WHERE producto_id = ? AND principal = 1");
-                    $stmt->execute([$producto_id]);
-                    
-                    // Insertar nueva imagen
-                    $stmt = $pdo->prepare("
-                        INSERT INTO producto_imagenes (producto_id, nombre_archivo, ruta, tipo, orden, principal) 
-                        VALUES (?, ?, ?, 'imagen', 1, 1)
-                    ");
-                    $stmt->execute([
-                        $producto_id, 
-                        basename($imagen), 
-                        $imagen
-                    ]);
-                } catch (Exception $e) {
-                    error_log("Error al actualizar imagen del producto: " . $e->getMessage());
-                }
-            }
-            
             $mensaje = 'Producto actualizado exitosamente';
             $tipoMensaje = 'success';
-            
-            // Recargar datos del producto
-            $producto = $productoModel->obtenerPorId($producto_id);
         } else {
-            $mensaje = $resultado['message'];
+            $mensaje = 'Error al actualizar el producto: ' . ($resultado['message'] ?? 'Error desconocido');
             $tipoMensaje = 'danger';
         }
     }
 }
 
-// Obtener imagen actual del producto
-$imagen_actual = null;
-try {
-    $stmt = $pdo->prepare("
-        SELECT ruta FROM producto_imagenes 
-        WHERE producto_id = ? AND principal = 1 
-        ORDER BY orden ASC 
-        LIMIT 1
-    ");
-    $stmt->execute([$producto_id]);
-    $imagen_data = $stmt->fetch(PDO::FETCH_ASSOC);
-    $imagen_actual = $imagen_data ? $imagen_data['ruta'] : null;
-} catch (Exception $e) {
-    $imagen_actual = null;
+// Obtener datos del producto
+require_once __DIR__ . '/../../models/Producto.php';
+$productoModel = new Producto($pdo);
+$producto = $productoModel->obtenerPorId($producto_id);
+
+if (!$producto) {
+    header('Location: index.php');
+    exit;
 }
+
+// Verificar que el producto pertenece al socio
+if ($producto['comercio_id'] != $comercio_id) {
+    header('Location: index.php');
+    exit;
+}
+
+// Obtener imágenes del producto
+$imagenesProducto = $productoModel->obtenerImagenes($producto_id);
 ?>
 
 <!DOCTYPE html>
@@ -161,7 +118,7 @@ try {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Editar Producto - OFM Socio</title>
+    <title>Editar Producto - Socio OFM</title>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback" rel="stylesheet">
@@ -192,319 +149,395 @@ try {
             background: rgba(255,255,255,0.1);
             transform: translateX(5px);
         }
-        .sidebar .nav-link i {
-            margin-right: 10px;
-            width: 20px;
-        }
         .main-content {
             margin-left: 250px;
-            background-color: #f8f9fa;
-            min-height: 100vh;
+            padding: 20px;
         }
         .card {
             border: none;
             border-radius: 15px;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            transition: transform 0.2s;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
-        .card:hover {
+        .card-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
         }
-        .form-control:focus {
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s;
+        }
+        .form-control:focus, .form-select:focus {
             border-color: #28a745;
             box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
         }
-        .btn-success {
-            background-color: #28a745;
-            border-color: #28a745;
-        }
-        .btn-success:hover {
-            background-color: #218838;
-            border-color: #1e7e34;
-        }
         .image-preview {
-            max-width: 200px;
-            max-height: 200px;
-            border-radius: 8px;
-            border: 2px dashed #dee2e6;
-            padding: 10px;
-            text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
         }
         .image-preview img {
-            max-width: 100%;
-            max-height: 100%;
-            border-radius: 4px;
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        .image-preview .remove-image {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .image-preview .image-container {
+            position: relative;
+        }
+        .drag-drop-area {
+            border: 2px dashed #28a745;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .drag-drop-area:hover {
+            background: #e9ecef;
+            border-color: #20c997;
+        }
+        .drag-drop-area.dragover {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        .existing-images {
+            margin-bottom: 20px;
+        }
+        .existing-images img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 5px;
+            border: 2px solid #e9ecef;
+        }
+        .existing-images .image-item {
+            position: relative;
+            display: inline-block;
+        }
+        .existing-images .remove-existing {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div class="d-flex">
-        <!-- Sidebar -->
-        <div class="sidebar p-3">
-            <div class="text-center mb-4">
-                <h4 class="text-white">OFM Socio</h4>
-                <small class="text-white-50">Panel de Negocio</small>
-            </div>
-            
+
+<div class="d-flex">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="p-3">
+            <h4 class="text-white text-center mb-4">
+                <i class="fas fa-store"></i> Socio OFM
+            </h4>
             <nav class="nav flex-column">
                 <a class="nav-link" href="../dashboard.php">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                    <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                 </a>
                 <a class="nav-link active" href="index.php">
-                    <i class="fas fa-box"></i> Mis Productos
+                    <i class="fas fa-box me-2"></i> Productos
                 </a>
-                <a class="nav-link" href="../ventas/">
-                    <i class="fas fa-chart-line"></i> Ventas
+                <a class="nav-link" href="../ventas/index.php">
+                    <i class="fas fa-shopping-cart me-2"></i> Ventas
                 </a>
-                <a class="nav-link" href="../verificar-qr/">
-                    <i class="fas fa-qrcode"></i> Verificar QR
+                <a class="nav-link" href="../verificar-qr/index.php">
+                    <i class="fas fa-qrcode me-2"></i> Verificar QR
                 </a>
-                <a class="nav-link" href="../perfil/">
-                    <i class="fas fa-user"></i> Mi Perfil
-                </a>
-                <a class="nav-link" href="../reportes/">
-                    <i class="fas fa-chart-bar"></i> Reportes
-                </a>
-                <a class="nav-link" href="../dashboard.php?logout=1">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                <a class="nav-link" href="?logout=1">
+                    <i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión
                 </a>
             </nav>
         </div>
+    </div>
 
-        <!-- Main Content -->
-        <div class="main-content flex-grow-1">
-            <div class="p-4">
-                <!-- Top Navbar -->
-                <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 rounded shadow-sm">
-                    <div class="container-fluid">
-                        <span class="navbar-brand">Editar Producto</span>
-                        <div class="navbar-nav ms-auto">
-                            <div class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-user-circle me-2"></i><?= htmlspecialchars($usuario['nombre']) ?>
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="../perfil/">Mi Perfil</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="../dashboard.php?logout=1">Cerrar Sesión</a></li>
-                                </ul>
-                            </div>
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">
+                                <i class="fas fa-edit me-2"></i>
+                                Editar Producto: <?= htmlspecialchars($producto['nombre']) ?>
+                            </h3>
                         </div>
-                    </div>
-                </nav>
+                        <div class="card-body">
+                            <?php if (!empty($mensaje)): ?>
+                                <div class="alert alert-<?= $tipoMensaje ?> alert-dismissible fade show" role="alert">
+                                    <?= htmlspecialchars($mensaje) ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            <?php endif; ?>
 
-                <!-- Breadcrumb -->
-                <nav aria-label="breadcrumb" class="mb-4">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="../dashboard.php">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="index.php">Mis Productos</a></li>
-                        <li class="breadcrumb-item active">Editar Producto</li>
-                    </ol>
-                </nav>
-
-                <!-- Mensaje de resultado -->
-                <?php if ($mensaje): ?>
-                    <div class="alert alert-<?= $tipoMensaje ?> alert-dismissible fade show" role="alert">
-                        <?= htmlspecialchars($mensaje) ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
-
-                <!-- Formulario -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-edit me-2"></i>Editar Producto: <?= htmlspecialchars($producto['nombre']) ?>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" enctype="multipart/form-data" id="productoForm">
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <!-- Información básica -->
-                                    <div class="mb-3">
-                                        <label for="nombre" class="form-label">Nombre del Producto *</label>
-                                        <input type="text" class="form-control" id="nombre" name="nombre" 
-                                               value="<?= htmlspecialchars($producto['nombre']) ?>" required>
-                                        <div class="form-text">Nombre descriptivo del producto</div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="descripcion" class="form-label">Descripción</label>
-                                        <textarea class="form-control" id="descripcion" name="descripcion" rows="4"
-                                                  placeholder="Describe las características del producto..."><?= htmlspecialchars($producto['descripcion']) ?></textarea>
-                                        <div class="form-text">Descripción detallada del producto</div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="categoria" class="form-label">Categoría *</label>
-                                                <select class="form-select" id="categoria" name="categoria" required>
-                                                    <option value="">Seleccionar categoría</option>
-                                                    <?php foreach ($categorias as $cat): ?>
-                                                        <option value="<?= $cat ?>" <?= $producto['categoria'] === $cat ? 'selected' : '' ?>>
-                                                            <?= $cat ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </div>
+                            <form method="POST" enctype="multipart/form-data" id="productoForm">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <label for="nombre" class="form-label">
+                                                <i class="fas fa-tag me-2"></i>Nombre del Producto *
+                                            </label>
+                                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                                   value="<?= htmlspecialchars($producto['nombre']) ?>" required>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="stock" class="form-label">Stock *</label>
-                                                <input type="number" class="form-control" id="stock" name="stock" 
-                                                       value="<?= htmlspecialchars($producto['stock']) ?>" min="0" required>
-                                                <div class="form-text">Cantidad disponible</div>
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="precio" class="form-label">Precio de Venta *</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text">$</span>
+                                        <div class="mb-3">
+                                            <label for="descripcion" class="form-label">
+                                                <i class="fas fa-align-left me-2"></i>Descripción
+                                            </label>
+                                            <textarea class="form-control" id="descripcion" name="descripcion" rows="4"
+                                                      placeholder="Describe tu producto..."><?= htmlspecialchars($producto['descripcion'] ?? '') ?></textarea>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="precio" class="form-label">
+                                                        <i class="fas fa-dollar-sign me-2"></i>Precio *
+                                                    </label>
                                                     <input type="number" class="form-control" id="precio" name="precio" 
                                                            value="<?= htmlspecialchars($producto['precio']) ?>" 
                                                            step="0.01" min="0" required>
                                                 </div>
-                                                <div class="form-text">Precio actual de venta</div>
                                             </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="precio_anterior" class="form-label">Precio Original</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text">$</span>
-                                                    <input type="number" class="form-control" id="precio_anterior" name="precio_anterior" 
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="precio_original" class="form-label">
+                                                        <i class="fas fa-tags me-2"></i>Precio Original
+                                                    </label>
+                                                    <input type="number" class="form-control" id="precio_original" name="precio_original" 
                                                            value="<?= htmlspecialchars($producto['precio_anterior'] ?? '') ?>" 
-                                                           step="0.01" min="0">
+                                                           step="0.01" min="0" placeholder="Para mostrar descuento">
                                                 </div>
-                                                <div class="form-text">Precio antes del descuento (opcional)</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="stock" class="form-label">
+                                                        <i class="fas fa-boxes me-2"></i>Stock *
+                                                    </label>
+                                                    <input type="number" class="form-control" id="stock" name="stock" 
+                                                           value="<?= htmlspecialchars($producto['stock']) ?>" 
+                                                           min="0" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="categoria" class="form-label">
+                                                        <i class="fas fa-folder me-2"></i>Categoría
+                                                    </label>
+                                                    <select class="form-select" id="categoria" name="categoria">
+                                                        <option value="">Selecciona una categoría</option>
+                                                        <?php foreach ($categorias as $cat): ?>
+                                                            <option value="<?= $cat ?>" <?= ($producto['categoria'] ?? '') === $cat ? 'selected' : '' ?>>
+                                                                <?= $cat ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="status" class="form-label">Estado del Producto</label>
-                                        <select class="form-select" id="status" name="status">
-                                            <option value="activo" <?= $producto['status'] === 'activo' ? 'selected' : '' ?>>Activo</option>
-                                            <option value="inactivo" <?= $producto['status'] === 'inactivo' ? 'selected' : '' ?>>Inactivo</option>
-                                            <option value="agotado" <?= $producto['status'] === 'agotado' ? 'selected' : '' ?>>Agotado</option>
-                                            <option value="en_oferta" <?= $producto['status'] === 'en_oferta' ? 'selected' : '' ?>>En Oferta</option>
-                                        </select>
-                                        <div class="form-text">Estado actual del producto</div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <!-- Imagen del producto -->
-                                    <div class="mb-3">
-                                        <label for="imagen" class="form-label">Nueva Imagen del Producto</label>
-                                        <input type="file" class="form-control" id="imagen" name="imagen" 
-                                               accept="image/*" onchange="previewImage(this)">
-                                        <div class="form-text">Formatos: JPG, PNG, GIF, WebP</div>
-                                    </div>
-
-                                    <!-- Vista previa de la imagen -->
-                                    <div class="image-preview" id="imagePreview">
-                                        <?php if ($imagen_actual): ?>
-                                            <img src="<?= htmlspecialchars($imagen_actual) ?>" alt="Imagen actual del producto">
-                                        <?php else: ?>
-                                            <i class="fas fa-image fa-3x text-muted"></i>
-                                            <p class="text-muted mt-2">Sin imagen</p>
+                                    <div class="col-md-4">
+                                        <!-- Imágenes existentes -->
+                                        <?php if (!empty($imagenesProducto)): ?>
+                                        <div class="mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-images me-2"></i>Imágenes Actuales
+                                            </label>
+                                            <div class="existing-images">
+                                                <?php foreach ($imagenesProducto as $imagen): ?>
+                                                <div class="image-item">
+                                                    <img src="<?= htmlspecialchars($imagen['ruta']) ?>" 
+                                                         alt="<?= htmlspecialchars($imagen['nombre_archivo']) ?>"
+                                                         title="<?= htmlspecialchars($imagen['nombre_archivo']) ?>">
+                                                    <button type="button" class="remove-existing" 
+                                                            onclick="removeExistingImage(<?= $imagen['id'] ?>)">×</button>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
                                         <?php endif; ?>
-                                    </div>
 
-                                    <!-- Información del producto -->
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6 class="card-title">
-                                                <i class="fas fa-info-circle me-2"></i>Información del Producto
-                                            </h6>
-                                            <ul class="list-unstyled small">
-                                                <li class="mb-2">
-                                                    <strong>ID:</strong> <?= $producto['id'] ?>
-                                                </li>
-                                                <li class="mb-2">
-                                                    <strong>Creado:</strong> <?= date('d/m/Y', strtotime($producto['creado_en'])) ?>
-                                                </li>
-                                                <li class="mb-2">
-                                                    <strong>Última actualización:</strong> 
-                                                    <?= $producto['actualizado_en'] ? date('d/m/Y', strtotime($producto['actualizado_en'])) : 'Nunca' ?>
-                                                </li>
-                                                <li>
-                                                    <strong>Comercio ID:</strong> <?= $producto['comercio_id'] ?>
-                                                </li>
-                                            </ul>
+                                        <div class="mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-plus-circle me-2"></i>Agregar Nuevas Imágenes
+                                            </label>
+                                            <div class="drag-drop-area" id="dragDropArea">
+                                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                                <p class="mb-2">Arrastra y suelta imágenes aquí</p>
+                                                <p class="text-muted small">o haz clic para seleccionar</p>
+                                                <input type="file" id="imagenes" name="imagenes[]" multiple accept="image/*" style="display: none;">
+                                            </div>
+                                            <div class="image-preview" id="imagePreview"></div>
+                                            <small class="text-muted">
+                                                Puedes seleccionar múltiples imágenes. La primera será la imagen principal.
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Botones de acción -->
-                            <div class="d-flex justify-content-between mt-4">
-                                <a href="index.php" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left me-2"></i>Volver
-                                </a>
-                                <div>
-                                    <button type="reset" class="btn btn-outline-secondary me-2">
-                                        <i class="fas fa-undo me-2"></i>Restaurar
-                                    </button>
-                                    <button type="submit" class="btn btn-success">
+                                <div class="text-center mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
                                         <i class="fas fa-save me-2"></i>Actualizar Producto
                                     </button>
+                                    <a href="index.php" class="btn btn-secondary btn-lg ms-2">
+                                        <i class="fas fa-arrow-left me-2"></i>Volver
+                                    </a>
                                 </div>
-                            </div>
-                        </form>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+let selectedFiles = [];
+
+// Drag and Drop
+const dragDropArea = document.getElementById('dragDropArea');
+const imagePreview = document.getElementById('imagePreview');
+const fileInput = document.getElementById('imagenes');
+
+dragDropArea.addEventListener('click', () => fileInput.click());
+
+dragDropArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dragDropArea.classList.add('dragover');
+});
+
+dragDropArea.addEventListener('dragleave', () => {
+    dragDropArea.classList.remove('dragover');
+});
+
+dragDropArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDropArea.classList.remove('dragover');
     
-    <script>
-        // Vista previa de imagen
-        function previewImage(input) {
-            const preview = document.getElementById('imagePreview');
-            
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    preview.innerHTML = `<img src="${e.target.result}" alt="Vista previa">`;
-                };
-                
-                reader.readAsDataURL(input.files[0]);
-            } else {
-                // Restaurar imagen original si existe
-                <?php if ($imagen_actual): ?>
-                    preview.innerHTML = `<img src="<?= htmlspecialchars($imagen_actual) ?>" alt="Imagen actual del producto">`;
-                <?php else: ?>
-                    preview.innerHTML = `
-                        <i class="fas fa-image fa-3x text-muted"></i>
-                        <p class="text-muted mt-2">Sin imagen</p>
-                    `;
-                <?php endif; ?>
-            }
-        }
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+});
 
-        // Validación del formulario
-        document.getElementById('productoForm').addEventListener('submit', function(e) {
-            const precio = parseFloat(document.getElementById('precio').value);
-            const precioAnterior = parseFloat(document.getElementById('precio_anterior').value);
+fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    handleFiles(files);
+});
+
+function handleFiles(files) {
+    files.forEach(file => {
+        if (file.type.startsWith('image/')) {
+            selectedFiles.push(file);
+        }
+    });
+    updateImagePreview();
+    updateFileInput();
+}
+
+function updateImagePreview() {
+    imagePreview.innerHTML = '';
+    
+    selectedFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'image-container';
             
-            if (precioAnterior > 0 && precio >= precioAnterior) {
-                e.preventDefault();
-                alert('El precio de venta debe ser menor al precio original para aplicar descuento');
-                return false;
-            }
-        });
-    </script>
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.alt = file.name;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-image';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = () => removeImage(index);
+            
+            imageContainer.appendChild(img);
+            imageContainer.appendChild(removeBtn);
+            imagePreview.appendChild(imageContainer);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeImage(index) {
+    selectedFiles.splice(index, 1);
+    updateImagePreview();
+    updateFileInput();
+}
+
+function updateFileInput() {
+    const dt = new DataTransfer();
+    selectedFiles.forEach(file => dt.items.add(file));
+    fileInput.files = dt.files;
+}
+
+function removeExistingImage(imageId) {
+    if (confirm('¿Estás seguro de que quieres eliminar esta imagen?')) {
+        // Aquí podrías implementar la eliminación de imágenes existentes
+        // Por ahora solo ocultamos la imagen
+        const imageItem = event.target.closest('.image-item');
+        if (imageItem) {
+            imageItem.style.display = 'none';
+        }
+    }
+}
+
+// Form submission
+$('#productoForm').submit(function(e) {
+    updateFileInput(); // Sincronizar antes de enviar
+});
+</script>
+
 </body>
 </html>

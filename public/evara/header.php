@@ -66,51 +66,17 @@
                         </div>
                         <div class="header-action-right">
                             <div class="header-action-2">
+                                <!-- ❌ CORAZÓN ELIMINADO -->
                                 <div class="header-action-icon-2">
-                                    <a href="shop-wishlist.html">
-                                        <img class="svgInject" alt="Evara" src="assets/imgs/theme/icons/icon-heart.svg">
-                                        <span class="pro-count blue">4</span>
-                                    </a>
-                                </div>
-                                <div class="header-action-icon-2">
-                                    <a class="mini-cart-icon" href="shop-cart.html">
+                                    <a class="mini-cart-icon" href="carrito.php">
                                         <img alt="Evara" src="assets/imgs/theme/icons/icon-cart.svg">
-                                        <span class="pro-count blue">2</span>
+                                        <span class="pro-count blue" id="cart-count">0</span>
                                     </a>
                                     <div class="cart-dropdown-wrap cart-dropdown-hm2">
-                                        <ul>
-                                            <li>
-                                                <div class="shopping-cart-img">
-                                                    <a href="shop-product-right.html"><img alt="Evara" src="assets/imgs/shop/thumbnail-3.jpg"></a>
-                                                </div>
-                                                <div class="shopping-cart-title">
-                                                    <h4><a href="shop-product-right.html">Daisy Casual Bag</a></h4>
-                                                    <h4><span>1 × </span>$800.00</h4>
-                                                </div>
-                                                <div class="shopping-cart-delete">
-                                                    <a href="#"><i class="fi-rs-cross-small"></i></a>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div class="shopping-cart-img">
-                                                    <a href="shop-product-right.html"><img alt="Evara" src="assets/imgs/shop/thumbnail-2.jpg"></a>
-                                                </div>
-                                                <div class="shopping-cart-title">
-                                                    <h4><a href="shop-product-right.html">Corduroy Shirts</a></h4>
-                                                    <h4><span>1 × </span>$3200.00</h4>
-                                                </div>
-                                                <div class="shopping-cart-delete">
-                                                    <a href="#"><i class="fi-rs-cross-small"></i></a>
-                                                </div>
-                                            </li>
-                                        </ul>
-                                        <div class="shopping-cart-footer">
-                                            <div class="shopping-cart-total">
-                                                <h4>Total <span>$4000.00</span></h4>
-                                            </div>
-                                            <div class="shopping-cart-button">
-                                                <a href="shop-cart.html" class="outline">View cart</a>
-                                                <a href="shop-checkout.html">Checkout</a>
+                                        <div id="cart-dropdown-content">
+                                            <!-- El contenido se cargará dinámicamente -->
+                                            <div class="text-center py-3">
+                                                <p class="text-muted">Cargando carrito...</p>
                                             </div>
                                         </div>
                                     </div>
@@ -169,22 +135,7 @@
                                                     </ul>
                                                 </li>
                                                 <li class="mega-menu-col col-lg-5">
-                                                    <div class="header-banner2">
-                                                        <img src="assets/imgs/banner/menu-banner-2.jpg" alt="menu_banner1">
-                                                        <div class="banne_info">
-                                                            <h6>10% Off</h6>
-                                                            <h4>New Arrival</h4>
-                                                            <a href="#">Shop now</a>
-                                                        </div>
-                                                    </div>
-                                                    <div class="header-banner2">
-                                                        <img src="assets/imgs/banner/menu-banner-3.jpg" alt="menu_banner2">
-                                                        <div class="banne_info">
-                                                            <h6>15% Off</h6>
-                                                            <h4>Hot Deals</h4>
-                                                            <a href="#">Shop now</a>
-                                                        </div>
-                                                    </div>
+                                                    <img src="assets/imgs/theme/evara_banner1.png" alt="evara_banner1">
                                                 </li>
                                             </ul>
                                         </div>
@@ -197,113 +148,181 @@
                                                     <ul class="d-lg-flex">
                                                         <li class="mega-menu-col col-lg-6">
                                                             <ul>
-                                                                <li><span class="submenu-title">Jackets & Coats</span></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Down Jackets</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Jackets</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Parkas</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Faux Leather Coats</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Trench</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Wool & Blends</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Vests & Waistcoats</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Leather Coats</a></li>
+                                                                <li><span class="submenu-title">Outerwear & Jackets</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Quilted Jackets</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Rain Jackets</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Softshell Jackets</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Hoodies & Sweatshirts</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Trade Jackets</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Text T-Shirts</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Oversized T-Shirts</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Polo Shirts</a></li>
                                                             </ul>
                                                         </li>
                                                         <li class="mega-menu-col col-lg-6">
                                                             <ul>
-                                                                <li><span class="submenu-title">Suits & Blazers</span></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Blazers</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Suit Jackets</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Suit Pants</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Suits</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Vests</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Tailor-made Suits</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Cover-Ups</a></li>
+                                                                <li><span class="submenu-title">Bottoms</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Large Size</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Graphic Print</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Cargos</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Cargo Joggers</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Jeans</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Polo Shorts</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Linen Shorts</a></li>
                                                             </ul>
                                                         </li>
                                                     </ul>
                                                 </li>
                                                 <li class="mega-menu-col col-lg-5">
-                                                    <div class="header-banner2">
-                                                        <img src="assets/imgs/banner/menu-banner-4.jpg" alt="menu_banner1">
-                                                        <div class="banne_info">
-                                                            <h6>10% Off</h6>
-                                                            <h4>New Arrival</h4>
-                                                            <a href="#">Shop now</a>
-                                                        </div>
-                                                    </div>
+                                                    <img src="assets/imgs/theme/evara_banner2.png" alt="evara_banner2">
                                                 </li>
                                             </ul>
                                         </div>
                                     </li>
                                     <li class="has-children">
-                                        <a href="shop-grid-right.html"><i class="evara-font-smartphone"></i> Cellphones</a>
+                                        <a href="shop-grid-right.html"><i class="evara-font-tshirt"></i>Accessories</a>
                                         <div class="dropdown-menu">
                                             <ul class="mega-menu d-lg-flex">
                                                 <li class="mega-menu-col col-lg-7">
                                                     <ul class="d-lg-flex">
                                                         <li class="mega-menu-col col-lg-6">
                                                             <ul>
-                                                                <li><span class="submenu-title">Hot & Trending</span></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Cellphones</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">iPhones</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Refurbished Phones</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Mobile Phone</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Mobile Phone Parts</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Phone Bags & Cases</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Communication Equipments</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Walkie Talkie</a></li>
+                                                                <li><span class="submenu-title">Sunglasses & Eyewear</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Round Sunglasses</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Square Sunglasses</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Oversized Sunglasses</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Round Eyewear</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Square Eyewear</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Oversized Eyewear</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Contact Lenses</a></li>
                                                             </ul>
                                                         </li>
                                                         <li class="mega-menu-col col-lg-6">
                                                             <ul>
-                                                                <li><span class="submenu-title">Accessories</span></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Screen Protectors</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Wire Chargers</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Wireless Chargers</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Car Chargers</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Power Bank</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Armbands</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Dust Plug</a></li>
-                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Signal Boosters</a></li>
+                                                                <li><span class="submenu-title">Jewelry & Watches</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Pendant Necklaces</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Crystal Necklaces</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Diamond Necklaces</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Vintage Necklaces</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Pearl Necklaces</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Beaded Necklaces</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Choker Necklaces</a></li>
                                                             </ul>
                                                         </li>
                                                     </ul>
                                                 </li>
                                                 <li class="mega-menu-col col-lg-5">
-                                                    <div class="header-banner2">
-                                                        <img src="assets/imgs/banner/menu-banner-5.jpg" alt="menu_banner1">
-                                                        <div class="banne_info">
-                                                            <h6>10% Off</h6>
-                                                            <h4>New Arrival</h4>
-                                                            <a href="#">Shop now</a>
-                                                        </div>
-                                                    </div>
-                                                    <div class="header-banner2">
-                                                        <img src="assets/imgs/banner/menu-banner-6.jpg" alt="menu_banner2">
-                                                        <div class="banne_info">
-                                                            <h6>15% Off</h6>
-                                                            <h4>Hot Deals</h4>
-                                                            <a href="#">Shop now</a>
-                                                        </div>
-                                                    </div>
+                                                    <img src="assets/imgs/theme/evara_banner3.png" alt="evara_banner3">
                                                 </li>
                                             </ul>
                                         </div>
                                     </li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-desktop"></i>Computer & Office</a></li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-cpu"></i>Consumer Electronics</a></li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-diamond"></i>Jewelry & Accessories</a></li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-home"></i>Home & Garden</a></li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-high-heels"></i>Shoes</a></li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-teddy-bear"></i>Mother & Kids</a></li>
-                                    <li><a href="shop-grid-right.html"><i class="evara-font-kite"></i>Outdoor fun</a></li>
-                                    <li>
-                                        <ul class="more_slide_open" style="display: none;">
-                                            <li><a href="shop-grid-right.html"><i class="evara-font-desktop"></i>Beauty, Health</a></li>
-                                            <li><a href="shop-grid-right.html"><i class="evara-font-cpu"></i>Bags and Shoes</a></li>
-                                            <li><a href="shop-grid-right.html"><i class="evara-font-diamond"></i>Consumer Electronics</a></li>
-                                            <li><a href="shop-grid-right.html"><i class="evara-font-home"></i>Automobiles & Motorcycles</a></li>
-                                        </ul>
+                                    <li class="has-children">
+                                        <a href="shop-grid-right.html"><i class="evara-font-cpu"></i>Bags and Shoes</a>
+                                        <div class="dropdown-menu">
+                                            <ul class="mega-menu d-lg-flex">
+                                                <li class="mega-menu-col col-lg-7">
+                                                    <ul class="d-lg-flex">
+                                                        <li class="mega-menu-col col-lg-6">
+                                                            <ul>
+                                                                <li><span class="submenu-title">Handbags & Wallets</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Tote Bags</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Shoulder Bags</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Crossbody Bags</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Clutches</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Backpacks</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Laptop Sleeves</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Briefcases</a></li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="mega-menu-col col-lg-6">
+                                                            <ul>
+                                                                <li><span class="submenu-title">Footwear</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Ankle Boots</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Knee-High Boots</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Mid-Calf Boots</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Ballet Flats</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Brogues</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Loafers</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Sandals</a></li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li class="mega-menu-col col-lg-5">
+                                                    <img src="assets/imgs/theme/evara_banner4.png" alt="evara_banner4">
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </li>
+                                    <li class="has-children">
+                                        <a href="shop-grid-right.html"><i class="evara-font-diamond"></i>Consumer Electronics</a>
+                                        <div class="dropdown-menu">
+                                            <ul class="mega-menu d-lg-flex">
+                                                <li class="mega-menu-col col-lg-7">
+                                                    <ul class="d-lg-flex">
+                                                        <li class="mega-menu-col col-lg-6">
+                                                            <ul>
+                                                                <li><span class="submenu-title">Computers & Laptops</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Gaming Laptops</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Ultrabooks</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Business Laptops</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">MacBooks</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Gaming Desktops</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">All-in-One PCs</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Gaming Monitors</a></li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="mega-menu-col col-lg-6">
+                                                            <ul>
+                                                                <li><span class="submenu-title">Smartphones & Tablets</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Smartphones</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Tablets</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Smartwatches</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Fitness Trackers</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Wireless Earbuds</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Bluetooth Speakers</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Portable Chargers</a></li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li class="mega-menu-col col-lg-5">
+                                                    <img src="assets/imgs/theme/evara_banner5.png" alt="evara_banner5">
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </li>
+                                    <li class="has-children">
+                                        <a href="shop-grid-right.html"><i class="evara-font-home"></i>Automobiles & Motorcycles</a>
+                                        <div class="dropdown-menu">
+                                            <ul class="mega-menu d-lg-flex">
+                                                <li class="mega-menu-col col-lg-7">
+                                                    <ul class="d-lg-flex">
+                                                        <li class="mega-menu-col col-lg-6">
+                                                            <ul>
+                                                                <li><span class="submenu-title">Automobiles</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Sedans</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">SUVs</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Hatchbacks</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Sports Cars</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Electric Vehicles</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Hybrid Vehicles</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Luxury Vehicles</a></li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="mega-menu-col col-lg-6">
+                                                            <ul>
+                                                                <li><span class="submenu-title">Motorcycles</span></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Sport Bikes</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Cruisers</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Touring Bikes</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Dual-Sport Bikes</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Scooters</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Electric Bikes</a></li>
+                                                                <li><a class="dropdown-item nav-link nav_item" href="#">Vintage Bikes</a></li>
+                                                            </ul>
+                                                        </li>
                                     </li>
                                 </ul>
                                 <div class="more_categories">Show more...</div>
@@ -338,51 +357,17 @@
                     <p class="mobile-promotion">Happy <span class="text-brand">Mother's Day</span>. Big Sale Up to 40%</p>
                     <div class="header-action-right d-block d-lg-none">
                         <div class="header-action-2">
+                            <!-- ❌ CORAZÓN ELIMINADO EN MÓVIL TAMBIÉN -->
                             <div class="header-action-icon-2">
-                                <a href="shop-wishlist.html">
-                                    <img alt="Evara" src="assets/imgs/theme/icons/icon-heart.svg">
-                                    <span class="pro-count white">4</span>
-                                </a>
-                            </div>
-                            <div class="header-action-icon-2">
-                                <a class="mini-cart-icon" href="shop-cart.html">
+                                <a class="mini-cart-icon" href="carrito.php">
                                     <img alt="Evara" src="assets/imgs/theme/icons/icon-cart.svg">
-                                    <span class="pro-count white">2</span>
+                                    <span class="pro-count white" id="cart-count-mobile">0</span>
                                 </a>
                                 <div class="cart-dropdown-wrap cart-dropdown-hm2">
-                                    <ul>
-                                        <li>
-                                            <div class="shopping-cart-img">
-                                                <a href="shop-product-right.html"><img alt="Evara" src="assets/imgs/shop/thumbnail-3.jpg"></a>
-                                            </div>
-                                            <div class="shopping-cart-title">
-                                                <h4><a href="shop-product-right.html">Plain Striola Shirts</a></h4>
-                                                <h3><span>1 × </span>$800.00</h3>
-                                            </div>
-                                            <div class="shopping-cart-delete">
-                                                <a href="#"><i class="fi-rs-cross-small"></i></a>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div class="shopping-cart-img">
-                                                <a href="shop-product-right.html"><img alt="Evara" src="assets/imgs/shop/thumbnail-4.jpg"></a>
-                                            </div>
-                                            <div class="shopping-cart-title">
-                                                <h4><a href="shop-product-right.html">Macbook Pro 2022</a></h4>
-                                                <h3><span>1 × </span>$3500.00</h3>
-                                            </div>
-                                            <div class="shopping-cart-delete">
-                                                <a href="#"><i class="fi-rs-cross-small"></i></a>
-                                            </div>
-                                        </li>
-                                    </ul>
-                                    <div class="shopping-cart-footer">
-                                        <div class="shopping-cart-total">
-                                            <h4>Total <span>$383.00</span></h4>
-                                        </div>
-                                        <div class="shopping-cart-button">
-                                            <a href="shop-cart.html">View cart</a>
-                                            <a href="shop-checkout.html">Checkout</a>
+                                    <div id="cart-dropdown-content-mobile">
+                                        <!-- El contenido se cargará dinámicamente -->
+                                        <div class="text-center py-3">
+                                            <p class="text-muted">Cargando carrito...</p>
                                         </div>
                                     </div>
                                 </div>
@@ -400,3 +385,133 @@
             </div>
         </div>
     </header>
+
+    <!-- Script para cargar el carrito dinámicamente -->
+    <script>
+    // Función para cargar el carrito en el dropdown
+    function cargarCarritoDropdown() {
+        // Solo cargar si el usuario está autenticado
+        fetch('ajax/obtener-carrito-dropdown.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    actualizarContadorCarrito(data.carrito.cantidad_productos);
+                    actualizarDropdownCarrito(data.carrito.productos, data.carrito.total);
+                } else {
+                    // Usuario no autenticado o error
+                    actualizarContadorCarrito(0);
+                    mostrarCarritoVacio();
+                }
+            })
+            .catch(error => {
+                console.error('Error cargando carrito:', error);
+                mostrarCarritoVacio();
+            });
+    }
+
+    // Función para actualizar el contador del carrito
+    function actualizarContadorCarrito(cantidad) {
+        document.getElementById('cart-count').textContent = cantidad;
+        document.getElementById('cart-count-mobile').textContent = cantidad;
+    }
+
+    // Función para actualizar el dropdown del carrito
+    function actualizarDropdownCarrito(productos, total) {
+        const contentDesktop = document.getElementById('cart-dropdown-content');
+        const contentMobile = document.getElementById('cart-dropdown-content-mobile');
+        
+        if (productos.length === 0) {
+            mostrarCarritoVacio();
+            return;
+        }
+
+        let html = '<ul>';
+        productos.forEach(producto => {
+            html += `
+                <li>
+                    <div class="shopping-cart-img">
+                        <a href="producto-detalle.php?id=${producto.producto_id}">
+                            <img alt="${producto.nombre}" src="${producto.imagen_url || 'assets/imgs/shop/default.png'}">
+                        </a>
+                    </div>
+                    <div class="shopping-cart-title">
+                        <h4><a href="producto-detalle.php?id=${producto.producto_id}">${producto.nombre}</a></h4>
+                        <h4><span>${producto.cantidad} × </span>$${parseFloat(producto.precio).toFixed(2)}</h4>
+                    </div>
+                    <div class="shopping-cart-delete">
+                        <a href="#" onclick="eliminarDelCarritoDropdown(${producto.producto_id})">
+                            <i class="fi-rs-cross-small"></i>
+                        </a>
+                    </div>
+                </li>
+            `;
+        });
+        
+        html += `</ul>
+        <div class="shopping-cart-footer">
+            <div class="shopping-cart-total">
+                <h4>Total <span>$${parseFloat(total).toFixed(2)}</span></h4>
+            </div>
+            <div class="shopping-cart-button">
+                <a href="carrito.php">Ver carrito</a>
+                <a href="carrito.php">Checkout</a>
+            </div>
+        </div>`;
+        
+        contentDesktop.innerHTML = html;
+        contentMobile.innerHTML = html;
+    }
+
+    // Función para mostrar carrito vacío
+    function mostrarCarritoVacio() {
+        const contentDesktop = document.getElementById('cart-dropdown-content');
+        const contentMobile = document.getElementById('cart-dropdown-content-mobile');
+        
+        const html = `
+            <div class="text-center py-4">
+                <i class="fi-rs-shopping-cart" style="font-size: 2rem; color: #ccc;"></i>
+                <p class="text-muted mt-2">Tu carrito está vacío</p>
+                <a href="index.php" class="btn btn-sm btn-primary">Ir a la tienda</a>
+            </div>
+        `;
+        
+        contentDesktop.innerHTML = html;
+        contentMobile.innerHTML = html;
+    }
+
+    // Función para eliminar producto del carrito desde el dropdown
+    function eliminarDelCarritoDropdown(productoId) {
+        if (confirm('¿Eliminar este producto del carrito?')) {
+            fetch('ajax/eliminar-del-carrito.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    producto_id: productoId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Recargar el carrito en el dropdown
+                    cargarCarritoDropdown();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al eliminar producto');
+            });
+        }
+    }
+
+    // Cargar carrito al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarCarritoDropdown();
+        
+        // Recargar carrito cada 30 segundos para mantener sincronizado
+        setInterval(cargarCarritoDropdown, 30000);
+    });
+    </script>
